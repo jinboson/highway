@@ -711,7 +711,7 @@
 // TODO: check flag values
 #define HWY_HAVE_SCALABLE 0
 #define HWY_HAVE_INTEGER64 1
-#define HWY_HAVE_FLOAT16 1
+#define HWY_HAVE_FLOAT16 0
 #define HWY_HAVE_FLOAT64 1
 #define HWY_MEM_OPS_MIGHT_FAULT 0
 #define HWY_NATIVE_FMA 1
