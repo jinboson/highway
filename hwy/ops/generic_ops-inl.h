@@ -1055,6 +1055,7 @@ HWY_API VFromD<D> MaxOfLanes(D /* tag */, VFromD<D> v) {
 #else
 #define HWY_NATIVE_REDUCE_SUM_4_UI8
 #endif
+
 template <class D, HWY_IF_V_SIZE_D(D, 4), HWY_IF_UI8_D(D)>
 HWY_API TFromD<D> ReduceSum(D d, VFromD<D> v) {
   const Twice<RepartitionToWide<decltype(d)>> dw;
@@ -5156,7 +5157,9 @@ HWY_INLINE V IntDiv(V a, V b) {
 template <size_t kOrigLaneSize, class V, HWY_IF_NOT_FLOAT_NOR_SPECIAL_V(V),
           HWY_IF_T_SIZE_ONE_OF_V(V, ((HWY_TARGET <= HWY_SSE2 ||
                                       HWY_TARGET == HWY_WASM ||
-                                      HWY_TARGET == HWY_WASM_EMU256)
+                                      HWY_TARGET == HWY_WASM_EMU256 ||
+                                      HWY_TARGET == HWY_LSX ||
+                                      HWY_TARGET == HWY_LASX)
                                          ? 0
                                          : (1 << 1)) |
                                         (1 << 2) | (1 << 4) | (1 << 8))>
@@ -5165,7 +5168,7 @@ HWY_INLINE V IntMod(V a, V b) {
 }
 
 #if HWY_TARGET <= HWY_SSE2 || HWY_TARGET == HWY_WASM || \
-    HWY_TARGET == HWY_WASM_EMU256
+    HWY_TARGET == HWY_WASM_EMU256 || HWY_TARGET == HWY_LSX || HWY_TARGET == HWY_LASX
 template <size_t kOrigLaneSize, class V, HWY_IF_UI8(TFromV<V>),
           HWY_IF_V_SIZE_LE_V(V, HWY_MAX_BYTES / 2)>
 HWY_INLINE V IntMod(V a, V b) {
@@ -5184,7 +5187,7 @@ HWY_INLINE V IntMod(V a, V b) {
       IntMod<kOrigLaneSize>(PromoteUpperTo(dw, a), PromoteUpperTo(dw, b)));
 }
 #endif  // HWY_TARGET <= HWY_SSE2 || HWY_TARGET == HWY_WASM || HWY_TARGET ==
-        // HWY_WASM_EMU256
+        // HWY_WASM_EMU256 || HWY_TARGET == HWY_LSX || HWY_TARGET == HWY_LASX
 
 }  // namespace detail
 

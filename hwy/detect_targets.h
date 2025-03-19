@@ -299,6 +299,10 @@
 #define HWY_BROKEN_LOONGARCH 0
 #endif
 
+//debug gcc-8.3.0 supports LSX & LASX as well.
+#undef HWY_BROKEN_LOONGARCH
+#define HWY_BROKEN_LOONGARCH 0
+
 #if HWY_ARCH_S390X
 #if HWY_COMPILER_CLANG && HWY_COMPILER_CLANG < 1900
 // Clang 18 and earlier have bugs with some ZVector intrinsics
@@ -653,11 +657,11 @@
 // Choose targets for dynamic dispatch according to one of four policies
 
 // TODO: remove once HWY_LSX is actually supported
-#if HWY_ARCH_LOONGARCH
-#undef HWY_COMPILE_ONLY_STATIC
-#undef HWY_COMPILE_ONLY_EMU128
-#define HWY_COMPILE_ONLY_SCALAR
-#endif
+//#if HWY_ARCH_LOONGARCH
+//#undef HWY_COMPILE_ONLY_STATIC
+//#undef HWY_COMPILE_ONLY_EMU128
+//#define HWY_COMPILE_ONLY_SCALAR
+//#endif
 
 #if 1 < (defined(HWY_COMPILE_ONLY_SCALAR) + defined(HWY_COMPILE_ONLY_EMU128) + \
          defined(HWY_COMPILE_ONLY_STATIC))
