@@ -2385,7 +2385,7 @@ HWY_API Vec256<T> TableLookupLanes(Vec256<T> v, Indices256<T> idx) {
   const auto a = ConcatLowerLower(d, v, v);
   const auto b = ConcatUpperUpper(d, v, v);
   return BitCast(d, Vec256<int64_t>{__lasx_xvshuf_d(
-                        BitCast(di, b).raw, BitCast(di, a).raw, idx.raw)});
+                        idx.raw, BitCast(di, b).raw, BitCast(di, a).raw)});
 }
 
 template <typename T, HWY_IF_T_SIZE(T, 1)>
@@ -4197,7 +4197,7 @@ HWY_INLINE Vec256<uint64_t> IndicesFromBits256(uint64_t mask_bits) {
       10, 0,  1, 3, 8, 10, 1,  3, 9, 10, 0,  3, 8, 9, 10, 3,
       11, 0,  1, 2, 8, 11, 1,  2, 9, 11, 0,  2, 8, 9, 11, 2,
       10, 11, 0, 1, 8, 10, 11, 1, 9, 10, 11, 0, 8, 9, 10, 11};
-  return Load(d64, u64_indices + 32 * mask_bits);
+  return Load(d64, u64_indices + 4 * mask_bits);
 }
 
 template <typename T, HWY_IF_T_SIZE(T, 4)>
@@ -4272,7 +4272,7 @@ HWY_INLINE Vec256<uint64_t> IndicesFromNotBits256(uint64_t mask_bits) {
       8, 9, 11, 2,  9, 11, 0,  2, 8, 11, 1,  2, 11, 0,  1, 2,
       8, 9, 10, 3,  9, 10, 0,  3, 8, 10, 1,  3, 10, 0,  1, 3,
       8, 9, 2,  3,  9, 0,  2,  3, 8, 1,  2,  3, 0,  1,  2, 3};
-  return Load(d64, u64_indices + 32 * mask_bits);
+  return Load(d64, u64_indices + 4 * mask_bits);
 }
 
 template <typename T, HWY_IF_NOT_T_SIZE(T, 2)>
