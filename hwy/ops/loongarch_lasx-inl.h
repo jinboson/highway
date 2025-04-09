@@ -963,19 +963,6 @@ HWY_API Vec256<double> operator-(Vec256<double> a, Vec256<double> b) {
   return Vec256<double>{__lasx_xvfsub_d(a.raw, b.raw)};
 }
 
-// ------------------------------ AddSub
-
-template <typename T, HWY_IF_FLOAT3264(T)>
-HWY_API Vec256<T> AddSub(Vec256<T> a, Vec256<T> b) {
-  const DFromV<decltype(a)> d;
-  RebindToUnsigned<decltype(d)> du;
-  const auto sub = a - b;
-  const auto add = a + b;
-  return BitCast(
-      d, VFromD<decltype(du)>{__lasx_xvbitsel_v(
-             BitCast(du, add).raw, BitCast(du, sub).raw, Set(du, 0xffff).raw)});
-}
-
 // ------------------------------ SumsOf8
 HWY_API Vec256<uint64_t> SumsOf8(Vec256<uint8_t> v) {
   v.raw = __lasx_xvhaddw_hu_bu(v.raw, v.raw);
@@ -2836,7 +2823,7 @@ HWY_INLINE Vec256<T> OddEven(Vec256<T> a, Vec256<T> b) {
 
 template <typename T, HWY_IF_UI64(T)>
 HWY_INLINE Vec256<T> OddEven(Vec256<T> a, Vec256<T> b) {
-  return Vec256<T>{__lasx_xvextrins_d(b.raw, a.raw, 0x01)};
+  return Vec256<T>{__lasx_xvextrins_d(b.raw, a.raw, 0x11)};
 }
 
 HWY_API Vec256<float> OddEven(Vec256<float> a, Vec256<float> b) {
@@ -2851,7 +2838,7 @@ HWY_API Vec256<double> OddEven(Vec256<double> a, Vec256<double> b) {
   const DFromV<decltype(a)> d;
   const RebindToUnsigned<decltype(d)> du;
   return BitCast(d, VFromD<decltype(du)>{__lasx_xvextrins_d(
-                        BitCast(du, b).raw, BitCast(du, a).raw, 0x01)});
+                        BitCast(du, b).raw, BitCast(du, a).raw, 0x11)});
 }
 
 // -------------------------- InterleaveEven
