@@ -356,8 +356,9 @@ HWY_API Vec256<T> Xor(Vec256<T> a, Vec256<T> b) {
 template <typename T>
 HWY_API Vec256<T> Not(const Vec256<T> v) {
   const DFromV<decltype(v)> d;
-  using TU = MakeUnsigned<T>;
-  return Xor(v, BitCast(d, Vec256<TU>{__lasx_xvreplgr2vr_w(-1)}));
+  const RebindToUnsigned<decltype(d)> du;
+  return BitCast(d, VFromD<decltype(du)>{__lasx_xvnor_v(BitCast(du, v).raw,
+                                                        BitCast(du, v).raw)});
 }
 
 // ------------------------------ Xor3
@@ -445,41 +446,10 @@ HWY_API Vec256<T> VecFromMask(const Mask256<T> v) {
 // ------------------------------ IfThenElse
 
 // mask ? yes : no
-
-template <typename T, HWY_IF_T_SIZE(T, 1)>
-HWY_API Vec256<T> IfThenElse(Mask256<T> mask, Vec256<T> yes, Vec256<T> no) {
-  const auto vec_mask = __lasx_xvslti_b(mask.raw, 0);
-  return Vec256<T>{__lasx_xvbitsel_v(no.raw, yes.raw, vec_mask)};
-}
-
-template <typename T, HWY_IF_T_SIZE(T, 2)>
+template <typename T>
 HWY_API Vec256<T> IfThenElse(Mask256<T> mask, Vec256<T> yes, Vec256<T> no) {
   const DFromV<decltype(yes)> d;
-  const RebindToSigned<decltype(d)> di;
-  const auto vec_from_mask = VecFromMask(mask);
-  const auto vec_mask = __lasx_xvslti_h(BitCast(di, vec_from_mask).raw, 0);
-  return BitCast(d, VFromD<decltype(di)>{__lasx_xvbitsel_v(
-                        BitCast(di, no).raw, BitCast(di, yes).raw, vec_mask)});
-}
-
-template <typename T, HWY_IF_T_SIZE(T, 4)>
-HWY_API Vec256<T> IfThenElse(Mask256<T> mask, Vec256<T> yes, Vec256<T> no) {
-  const DFromV<decltype(yes)> d;
-  const RebindToSigned<decltype(d)> di;
-  const auto vec_from_mask = VecFromMask(mask);
-  const auto vec_mask = __lasx_xvslti_w(BitCast(di, vec_from_mask).raw, 0);
-  return BitCast(d, VFromD<decltype(di)>{__lasx_xvbitsel_v(
-                        BitCast(di, no).raw, BitCast(di, yes).raw, vec_mask)});
-}
-
-template <typename T, HWY_IF_T_SIZE(T, 8)>
-HWY_API Vec256<T> IfThenElse(Mask256<T> mask, Vec256<T> yes, Vec256<T> no) {
-  const DFromV<decltype(yes)> d;
-  const RebindToSigned<decltype(d)> di;
-  const auto vec_from_mask = VecFromMask(mask);
-  const auto vec_mask = __lasx_xvslti_d(BitCast(di, vec_from_mask).raw, 0);
-  return BitCast(d, VFromD<decltype(di)>{__lasx_xvbitsel_v(
-                        BitCast(di, no).raw, BitCast(di, yes).raw, vec_mask)});
+  return Or(And(VecFromMask(mask), yes), AndNot(VecFromMask(mask), no));
 }
 
 // mask ? yes : 0
@@ -1362,7 +1332,7 @@ HWY_API Vec256<T> Ror(Vec256<T> a, Vec256<T> b) {
 
 template <class T, HWY_IF_UI64(T)>
 HWY_API Vec256<T> Rol(Vec256<T> a, Vec256<T> b) {
-  b.raw = __lasx_xvsub_d(__lasx_xvreplgr2vr_d(32), b.raw);
+  b.raw = __lasx_xvsub_d(__lasx_xvreplgr2vr_d(64), b.raw);
   return Vec256<T>{__lasx_xvrotr_d(a.raw, b.raw)};
 }
 
@@ -1816,18 +1786,6 @@ HWY_API void BlendedStore(VFromD<D> v, MFromD<D> m, D d,
       IfThenElse(RebindMask(du, m), BitCast(du, v), BitCast(du, LoadU(d, p)));
   StoreU(BitCast(d, blended), d, p);
 }
-
-// impl in lsx
-//// ------------------------------ Non-temporal stores
-// template <class D, HWY_IF_V_SIZE_D(D, 32)>
-// HWY_API void Stream(VFromD<D> v, D d, TFromD<D>* HWY_RESTRICT aligned) {
-//  __builtin_prefetch(aligned, 1, 0);
-//  Store(v, d, aligned);
-//}
-
-// ------------------------------ ScatterOffset
-// ------------------------------ Gather
-// ------------------------------ MaskedGatherIndexOr
 
 // ================================================== SWIZZLE
 // ------------------------------ LowerHalf
@@ -2371,8 +2329,8 @@ HWY_API Vec256<T> TableLookupLanes(Vec256<T> v, Indices256<T> idx) {
   const RebindToSigned<decltype(d)> di;
   const auto a = ConcatLowerLower(d, v, v);
   const auto b = ConcatUpperUpper(d, v, v);
-  return BitCast(d, Vec256<int64_t>{__lasx_xvshuf_d(
-                        idx.raw, BitCast(di, b).raw, BitCast(di, a).raw)});
+  return BitCast(d, Vec256<int64_t>{__lasx_xvshuf_d(idx.raw, BitCast(di, b).raw,
+                                                    BitCast(di, a).raw)});
 }
 
 template <typename T, HWY_IF_T_SIZE(T, 1)>
@@ -4391,10 +4349,10 @@ HWY_API size_t CompressBlendedStore(VFromD<D> v, MFromD<D> m, D d,
   const Vec256<TU> idx_mask = detail::IndicesFromBits256<TFromD<D>>(mask_bits);
   // Shift nibble MSB into MSB
   const auto shiftVal = sizeof(TU) == 4 ? 28 : 60;
-  const Mask256<TU> mask32 = MaskFromVec(ShiftLeft<shiftVal>(idx_mask));
-  // First cast to unsigned (RebindMask cannot change lane size)
-  const MFromD<decltype(du)> mask_u{mask32.raw};
-  const MFromD<D> mask = RebindMask(d, mask_u);
+  const Mask256<TU> mask32or64 = MaskFromVec(ShiftLeft<shiftVal>(idx_mask));
+  const Mask256<TU> masku{sizeof(TU) == 4 ? __lasx_xvslti_w(mask32or64.raw, 0)
+                                          : __lasx_xvslti_d(mask32or64.raw, 0)};
+  const MFromD<D> mask = RebindMask(d, masku);
   const VFromD<D> compressed = BitCast(
       d, TableLookupLanes(BitCast(du, v), Indices256<TU>{idx_mask.raw}));
 
@@ -4808,7 +4766,8 @@ HWY_API V HighestSetBitIndex(V v) {
   return BitCast(d, Set(d, T{sizeof(T) * 8 - 1}) - LeadingZeroCount(v));
 }
 
-template <class V, HWY_IF_NOT_FLOAT_NOR_SPECIAL_V(V), HWY_IF_V_SIZE_V(V, 32), HWY_IF_T_SIZE_V(V, 1)>
+template <class V, HWY_IF_NOT_FLOAT_NOR_SPECIAL_V(V), HWY_IF_V_SIZE_V(V, 32),
+          HWY_IF_T_SIZE_V(V, 1)>
 HWY_API V TrailingZeroCount(V v) {
   return LeadingZeroCount(ReverseBits(v));
 }

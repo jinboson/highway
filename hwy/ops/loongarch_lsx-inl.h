@@ -473,13 +473,6 @@ HWY_API VFromD<D> VecFromMask(D /* tag */, MFromD<D> v) {
   return VecFromMask(v);
 }
 
-template <typename T, size_t N>
-HWY_API Vec128<T, N> IfThenElse(Mask128<T, N> mask, Vec128<T, N> yes,
-                                Vec128<T, N> no) {
-  return Vec128<T, N>{
-      __lsx_vbitsel_v(no.raw, yes.raw, __lsx_vslti_b(mask.raw, 0))};
-}
-
 // Generic for all vector lengths.
 //template <class V, class D = DFromV<V>, HWY_LSX_IF_EMULATED_D(D)>
 //HWY_API V IfThenElse(MFromD<D> mask, V yes, V no) {
@@ -511,16 +504,9 @@ HWY_API Vec128<T, N> IfThenElse(Mask128<T, N> mask, Vec128<T, N> yes,
 //                        BitCast(du, yes).raw, BitCast(du, no).raw, _temp)});
 //}
 
-template <size_t N>
-HWY_API Vec128<float, N> IfThenElse(Mask128<float, N> mask, Vec128<float, N> yes,
-                                Vec128<float, N> no) {
-  const DFromV<decltype(yes)> d;
-  return Or(And(VecFromMask(d, mask), yes), AndNot(VecFromMask(d, mask), no));
-}
-
-template <size_t N>
-HWY_API Vec128<double, N> IfThenElse(Mask128<double, N> mask, Vec128<double, N> yes,
-                                Vec128<double, N> no) {
+template <typename T, size_t N>
+HWY_API Vec128<T, N> IfThenElse(Mask128<T, N> mask, Vec128<T, N> yes,
+                                Vec128<T, N> no) {
   const DFromV<decltype(yes)> d;
   return Or(And(VecFromMask(d, mask), yes), AndNot(VecFromMask(d, mask), no));
 }
