@@ -224,13 +224,16 @@ HWY_API VFromD<D> Set(D /* tag */, TFromD<D> t) {
 }
 
 template <class D, HWY_IF_V_SIZE_LE_D(D, 16), HWY_IF_F32_D(D)>
-HWY_API VFromD<D> Set(D d, TFromD<D> t) {
+HWY_API VFromD<D> Set(D d, float t) {
   const RebindToSigned<decltype(d)> di;
+  const RebindToUnsigned<decltype(d)> du;
+  auto t0 = VFromD<decltype(di)>{__lsx_vldrepl_w(&t, 0)};
+  auto t1 = VFromD<decltype(du)>{__lsx_vldrepl_w(&t, 0)};;
   return BitCast(d, VFromD<decltype(di)>{__lsx_vldrepl_w(&t, 0)});
 }
 
 template <class D, HWY_IF_V_SIZE_LE_D(D, 16), HWY_IF_F64_D(D)>
-HWY_API VFromD<D> Set(D d, TFromD<D> t) {
+HWY_API VFromD<D> Set(D d, double t) {
   const RebindToSigned<decltype(d)> di;
   return BitCast(d, VFromD<decltype(di)>{__lsx_vldrepl_d(&t, 0)});
 }
@@ -311,16 +314,27 @@ HWY_API VFromD<D> Dup128VecFromValues(D /*d*/, TFromD<D> t0, TFromD<D> t1,
                                       TFromD<D> t11, TFromD<D> t12,
                                       TFromD<D> t13, TFromD<D> t14,
                                       TFromD<D> t15) {
-  alignas(16)
-      int8_t _tmp_data[] = {static_cast<int8_t>(t0),  static_cast<int8_t>(t1),
-                            static_cast<int8_t>(t2),  static_cast<int8_t>(t3),
-                            static_cast<int8_t>(t4),  static_cast<int8_t>(t5),
-                            static_cast<int8_t>(t6),  static_cast<int8_t>(t7),
-                            static_cast<int8_t>(t8),  static_cast<int8_t>(t9),
-                            static_cast<int8_t>(t10), static_cast<int8_t>(t11),
-                            static_cast<int8_t>(t12), static_cast<int8_t>(t13),
-                            static_cast<int8_t>(t14), static_cast<int8_t>(t15)};
-  return VFromD<D>{__lsx_vld(_tmp_data, 0)};
+  //alignas(16)
+  //    int8_t _tmp_data[] = {static_cast<int8_t>(t0),  static_cast<int8_t>(t1),
+  //                          static_cast<int8_t>(t2),  static_cast<int8_t>(t3),
+  //                          static_cast<int8_t>(t4),  static_cast<int8_t>(t5),
+  //                          static_cast<int8_t>(t6),  static_cast<int8_t>(t7),
+  //                          static_cast<int8_t>(t8),  static_cast<int8_t>(t9),
+  //                          static_cast<int8_t>(t10), static_cast<int8_t>(t11),
+  //                          static_cast<int8_t>(t12), static_cast<int8_t>(t13),
+  //                          static_cast<int8_t>(t14), static_cast<int8_t>(t15)};
+  //return VFromD<D>{__lsx_vld(_tmp_data, 0)};
+  typedef int8_t GccI8RawVectType __attribute__((__vector_size__(16)));
+  const GccI8RawVectType raw = {
+      static_cast<int8_t>(t0),  static_cast<int8_t>(t1),
+      static_cast<int8_t>(t2),  static_cast<int8_t>(t3),
+      static_cast<int8_t>(t4),  static_cast<int8_t>(t5),
+      static_cast<int8_t>(t6),  static_cast<int8_t>(t7),
+      static_cast<int8_t>(t8),  static_cast<int8_t>(t9),
+      static_cast<int8_t>(t10), static_cast<int8_t>(t11),
+      static_cast<int8_t>(t12), static_cast<int8_t>(t13),
+      static_cast<int8_t>(t14), static_cast<int8_t>(t15)};
+  return VFromD<D>{reinterpret_cast<__m128i>(raw)};
 }
 
 template <class D, HWY_IF_UI16_D(D), HWY_IF_V_SIZE_LE_D(D, 16)>
@@ -387,11 +401,6 @@ HWY_API Vec128<T, N> And(Vec128<T, N> a, Vec128<T, N> b) {
   return BitCast(d, VFromD<decltype(du)>{
                         __lsx_vand_v(BitCast(du, a).raw, BitCast(du, b).raw)});
 }
-
-// template <typename T, size_t N, HWY_IF_NOT_FLOAT(T)>
-// HWY_API Vec128<T, N> And(Vec128<T, N> a, Vec128<T, N> b) {
-//  return Vec128<T, N>{__lsx_vand_v(a.raw, b.raw)};
-//}
 
 // ------------------------------ AndNot
 
@@ -473,40 +482,22 @@ HWY_API VFromD<D> VecFromMask(D /* tag */, MFromD<D> v) {
   return VecFromMask(v);
 }
 
-// Generic for all vector lengths.
-//template <class V, class D = DFromV<V>, HWY_LSX_IF_EMULATED_D(D)>
-//HWY_API V IfThenElse(MFromD<D> mask, V yes, V no) {
-//  const RebindToUnsigned<D> du;
-//  return BitCast(
-//      D(), IfThenElse(RebindMask(du, mask), BitCast(du, yes), BitCast(du, no)));
-//}
-
-//template <size_t N>  // 有问题 关闭注释 功能测试不过
-//HWY_API Vec128<float, N> IfThenElse(Mask128<float, N> mask,
-//                                    Vec128<float, N> yes, Vec128<float, N> no) {
-//  const DFromV<decltype(yes)> d;
-//  const RebindToUnsigned<decltype(d)> du;
-//  __m128i _temp = __lsx_vfcmp_clt_s(
-//      mask.raw, reinterpret_cast<__m128>(__lsx_vreplgr2vr_w(0)));
-//  return BitCast(d, VFromD<decltype(du)>{__lsx_vbitsel_v(
-//                        BitCast(du, yes).raw, BitCast(du, no).raw, _temp)});
-//}
-
-//template <size_t N>
-//HWY_API Vec128<double, N> IfThenElse(Mask128<double, N> mask,
-//                                     Vec128<double, N> yes,
-//                                     Vec128<double, N> no) {
-//  const DFromV<decltype(yes)> d;
-//  const RebindToUnsigned<decltype(d)> du;
-//  __m128i _temp = __lsx_vfcmp_clt_d(
-//      mask.raw, reinterpret_cast<__m128d>(__lsx_vreplgr2vr_w(0)));
-//  return BitCast(d, VFromD<decltype(du)>{__lsx_vbitsel_v(
-//                        BitCast(du, yes).raw, BitCast(du, no).raw, _temp)});
-//}
-
 template <typename T, size_t N>
 HWY_API Vec128<T, N> IfThenElse(Mask128<T, N> mask, Vec128<T, N> yes,
                                 Vec128<T, N> no) {
+  return Vec128<T, N>{__lsx_vbitsel_v(no.raw, yes.raw, mask.raw)};
+}
+
+template <size_t N>
+HWY_API Vec128<float, N> IfThenElse(Mask128<float, N> mask, Vec128<float, N> yes,
+                                Vec128<float, N> no) {
+  const DFromV<decltype(yes)> d;
+  return Or(And(VecFromMask(d, mask), yes), AndNot(VecFromMask(d, mask), no));
+}
+
+template <size_t N>
+HWY_API Vec128<double, N> IfThenElse(Mask128<double, N> mask, Vec128<double, N> yes,
+                                Vec128<double, N> no) {
   const DFromV<decltype(yes)> d;
   return Or(And(VecFromMask(d, mask), yes), AndNot(VecFromMask(d, mask), no));
 }
@@ -866,7 +857,7 @@ HWY_API Vec128<TI, NI> TableLookupBytes(const Vec128<T, N> bytes,
   const Repartition<uint8_t, decltype(d_bytes)> du8_bytes;
   return BitCast(
       d, VFromD<decltype(du8)>{__lsx_vshuf_b(BitCast(du8_bytes, bytes).raw, BitCast(du8_bytes, bytes).raw,
-                                                BitCast(du8, from).raw)});
+                                                (BitCast(du8, from).raw))});
 }
 
 // ------------------------------ TableLookupBytesOr0
@@ -905,7 +896,7 @@ HWY_API Vec32<T> ShuffleTwo2301(const Vec32<T> a, const Vec32<T> b) {
 }
 template <typename T, HWY_IF_T_SIZE(T, 2)>
 HWY_API Vec64<T> ShuffleTwo2301(const Vec64<T> a, const Vec64<T> b) {
-  const int16_t _data_idx[] = {1, 0, 11, 10, 0x7F, 0x7F, 0x7F, 0x7F};
+  const int16_t _data_idx[] = {9, 8, 3, 2};
   __m128i shuffle_idx = __lsx_vld(_data_idx, 0);
   return Vec64<T>{__lsx_vshuf_h(shuffle_idx, a.raw, b.raw)};
 }
@@ -926,9 +917,10 @@ HWY_API Vec32<T> ShuffleTwo1230(const Vec32<T> a, const Vec32<T> b) {
 }
 template <typename T, HWY_IF_T_SIZE(T, 2)>
 HWY_API Vec64<T> ShuffleTwo1230(const Vec64<T> a, const Vec64<T> b) {
-  const int16_t _data_idx[] = {0, 3, 10, 9, 0x7F, 0x7F, 0x7F, 0x7F};
+  const int16_t _data_idx[] = {10, 11, 2, 1};
   __m128i shuffle_idx = __lsx_vld(_data_idx, 0);
-  return Vec64<T>{__lsx_vshuf_h(shuffle_idx, a.raw, b.raw)};
+  auto t0 = __lsx_vshuf_h(shuffle_idx, a.raw, b.raw);
+  return Vec64<T>{t0};
 }
 template <typename T, HWY_IF_T_SIZE(T, 4)>
 HWY_API Vec128<T> ShuffleTwo1230(const Vec128<T> a, const Vec128<T> b) {
@@ -947,7 +939,7 @@ HWY_API Vec32<T> ShuffleTwo3012(const Vec32<T> a, const Vec32<T> b) {
 }
 template <typename T, HWY_IF_T_SIZE(T, 2)>
 HWY_API Vec64<T> ShuffleTwo3012(const Vec64<T> a, const Vec64<T> b) {
-  const int16_t _data_idx[] = {2, 1, 8, 11, 0x7F, 0x7F, 0x7F, 0x7F};
+  const int16_t _data_idx[] = {8, 9, 0, 3};
   __m128i shuffle_idx = __lsx_vld(_data_idx, 0);
   return Vec64<T>{__lsx_vshuf_h(shuffle_idx, a.raw, b.raw)};
 }
@@ -1777,7 +1769,6 @@ HWY_API Vec128<int64_t, N> MulHigh(const Vec128<int64_t, N> a,
   return Vec128<int64_t, N>{__lsx_vmuh_d(a.raw, b.raw)};
 }
 
-// 02.24
 // ------------------------------ MulEven
 
 template <size_t N>
@@ -3293,7 +3284,6 @@ HWY_INLINE V Per4LaneBlockShuffle(hwy::SizeTag<kIdx3210> /*idx_3210_tag*/,
                                   hwy::SizeTag<1> /*lane_size_tag*/,
                                   hwy::SizeTag<kVectSize> /*vect_size_tag*/,
                                   V v) {
-  const DFromV<decltype(v)> d;
   constexpr int kShuffle = static_cast<int>(kIdx3210 & 0xFF);
   return V{__lsx_vshuf4i_b(v.raw, kShuffle)};
 }
@@ -3874,9 +3864,6 @@ HWY_API Vec128<T, N> TwoTablesLookupLanes(Vec128<T, N> a, Vec128<T, N> b,
   // We only keep LowerHalf of the result, which is valid in idx.
   const Indices128<T, N * 2> idx2{idx.raw};
 #endif
-  //auto t1 = Combine(dt, b, a);
-  //auto t2 = TableLookupLanes(t1, VFromD<decltype(dt_u8)>{idx2.raw});
-  //return LowerHalf(d, t2);
   return LowerHalf(
       d, TableLookupBytes(Combine(dt, b, a),
                           BitCast(dt, VFromD<decltype(dt_u8)>{idx2.raw})));
@@ -3887,52 +3874,13 @@ HWY_API Vec128<T> TwoTablesLookupLanes(Vec128<T> a, Vec128<T> b,
                                        Indices128<T> idx) {
   return Vec128<T>{__lsx_vshuf_b(b.raw, a.raw, idx.raw)};
 }
-template <typename T, HWY_IF_UI16(T)>
+template <typename T, HWY_IF_T_SIZE_ONE_OF(T, (1 << 2) | (1 << 4) | (1 << 8))>
 HWY_API Vec128<T> TwoTablesLookupLanes(Vec128<T> a, Vec128<T> b,
                                        Indices128<T> idx) {
   const DFromV<decltype(a)> d;
   const Repartition<uint8_t, decltype(d)> du8;
   return BitCast(d, TwoTablesLookupLanes(BitCast(du8, a), BitCast(du8, b),
                                          Indices128<uint8_t>{idx.raw}));
-}
-
-//template <typename T, HWY_IF_UI16(T)>
-//HWY_API Vec128<T> TwoTablesLookupLanes(Vec128<T> a, Vec128<T> b,
-//                                       Indices128<T> idx) {
-//  return Vec128<T>{__lsx_vshuf_h(idx.raw, a.raw, b.raw)};
-//}
-template <typename T, HWY_IF_UI32(T)>
-HWY_API Vec128<T> TwoTablesLookupLanes(Vec128<T> a, Vec128<T> b,
-                                       Indices128<T> idx) {
-  return Vec128<T>{__lsx_vshuf_w(idx.raw, b.raw, a.raw)};
-}
-template <typename T, HWY_IF_UI64(T)>
-HWY_API Vec128<T> TwoTablesLookupLanes(Vec128<T> a, Vec128<T> b,
-                                       Indices128<T> idx) {
-  return Vec128<T>{__lsx_vshuf_d(idx.raw, a.raw, b.raw)};
-}
-
-HWY_API Vec128<float> TwoTablesLookupLanes(Vec128<float> a, Vec128<float> b,
-                                           Indices128<float> idx) {
-  const DFromV<decltype(a)> d;
-  const RebindToSigned<decltype(d)> di;
-  const auto sel_hi_mask =
-      RebindMask(d, Vec128<int32_t>{idx.raw} > Set(di, int32_t{3}));
-  const auto lo_lookup_result = TableLookupLanes(a, idx);
-  const auto hi_lookup_result = TableLookupLanes(b, idx);
-  return IfThenElse(sel_hi_mask, hi_lookup_result, lo_lookup_result);
-}
-
-HWY_API Vec128<double> TwoTablesLookupLanes(Vec128<double> a, Vec128<double> b,
-                                            Indices128<double> idx) {
-  const DFromV<decltype(a)> d;
-  const RebindToSigned<decltype(d)> di;
-  const Vec128<int64_t> idx_vec{idx.raw};
-  const Indices128<double> idx_mod{And(idx_vec, Set(di, int64_t{1})).raw};
-  const auto sel_hi_mask = MaskFromVec(BitCast(d, ShiftLeft<62>(idx_vec)));
-  const auto lo_lookup_result = TableLookupLanes(a, idx_mod);
-  const auto hi_lookup_result = TableLookupLanes(b, idx_mod);
-  return IfThenElse(sel_hi_mask, hi_lookup_result, lo_lookup_result);
 }
 
 // ------------------------------ OddEven (IfThenElse)
@@ -4356,7 +4304,6 @@ HWY_API VFromD<D> DemoteInRangeTo(D du32, VFromD<Rebind<double, D>> v) {
   return Or(clamped_lo31_u32, clamped_u32_msb);
 }
 
-// F64 to U32 DemoteTo is generic for all vector lengths on SSE2/SSSE3/SSE4/AVX2
 template <class D, HWY_IF_U32_D(D)>
 HWY_API VFromD<D> DemoteTo(D du32, VFromD<Rebind<double, D>> v) {
   const Rebind<double, decltype(du32)> df64;
@@ -4364,7 +4311,6 @@ HWY_API VFromD<D> DemoteTo(D du32, VFromD<Rebind<double, D>> v) {
   return DemoteInRangeTo(du32, clamped);
 }
 
-// Generic for all vector lengths on SSE2/SSSE3/SSE4/AVX2
 template <class D, HWY_IF_F32_D(D)>
 HWY_API VFromD<D> DemoteTo(D df32, VFromD<Rebind<int64_t, D>> v) {
   const Rebind<double, decltype(df32)> df64;
@@ -4395,7 +4341,6 @@ HWY_API VFromD<D> DemoteTo(D df32, VFromD<Rebind<int64_t, D>> v) {
   return DemoteTo(df32, adj_f64_val);
 }
 
-// Generic for all vector lengths on SSE2/SSSE3/SSE4/AVX2
 template <class D, HWY_IF_F32_D(D)>
 HWY_API VFromD<D> DemoteTo(D df32, VFromD<Rebind<uint64_t, D>> v) {
   const Rebind<double, decltype(df32)> df64;
@@ -4570,7 +4515,7 @@ HWY_API VFromD<D> PromoteTo(D /*di64*/, VFromD<Rebind<float, D>> v) {
   return VFromD<D>{__lsx_vftintrzl_l_s(v.raw)};
 }
 
-template <class D, HWY_IF_V_SIZE_LE_D(D, 16), HWY_IF_UI64_D(D)>
+template <class D, HWY_IF_UI64_D(D), HWY_IF_V_SIZE_LE_D(D, 16)>
 HWY_API VFromD<D> PromoteInRangeTo(D d64, VFromD<Rebind<float, D>> v) {
   const Rebind<MakeNarrow<TFromD<D>>, decltype(d64)> d32;
   const RebindToSigned<decltype(d32)> di32;
@@ -4590,11 +4535,27 @@ HWY_API VFromD<D> PromoteInRangeTo(D d64, VFromD<Rebind<float, D>> v) {
          << PromoteTo(d64, exponent_adj);
 }
 
-// f32 ->u64
-template <class D, HWY_IF_V_SIZE_LE_D(D, 16), HWY_IF_U64_D(D)>
-HWY_API VFromD<D> PromoteTo(D /* tag */, VFromD<Rebind<float, D>> v) {
-  auto t0 = ZeroIfNegative(v);
-  return PromoteInRangeTo(D(), t0);
+template <class D, HWY_IF_U64_D(D), HWY_IF_V_SIZE_LE_D(D, 16)>
+HWY_API VFromD<D> PromoteTo(D du64, VFromD<Rebind<float, D>> v) {
+  const Rebind<uint32_t, decltype(du64)> du32;
+  const RebindToFloat<decltype(du32)> df32;
+  const Repartition<uint8_t, decltype(du32)> du32_as_du8;
+
+  const auto exponent_adj = BitCast(
+      du32,
+      Min(SaturatedSub(BitCast(du32_as_du8, ShiftRight<23>(BitCast(du32, v))),
+                       BitCast(du32_as_du8, Set(du32, uint32_t{158}))),
+          BitCast(du32_as_du8, Set(du32, uint32_t{32}))));
+
+  const auto adj_v =
+      BitCast(df32, BitCast(du32, v) - ShiftLeft<23>(exponent_adj));
+  const auto f32_to_u32_result = ConvertTo(du32, adj_v);
+  const auto lo32_or_mask = PromoteTo(
+      du64,
+      VecFromMask(du32, f32_to_u32_result == Set(du32, LimitsMax<uint32_t>())));
+
+  return Or(PromoteTo(du64, f32_to_u32_result) << PromoteTo(du64, exponent_adj),
+            lo32_or_mask);
 }
 
 // ------------------------------ MulFixedPoint15
@@ -5086,14 +5047,6 @@ HWY_INLINE VFromD<D> IndicesFromBits128(D d, uint64_t mask_bits) {
   const Twice<decltype(d8)> d8t;
   const RebindToUnsigned<decltype(d)> du;
 
-  // compress_epi16 requires VBMI2 and there is no permutevar_epi16, so we need
-  // byte indices for PSHUFB (one vector's worth for each of 256 combinations of
-  // 8 mask bits). Loading them directly would require 4 KiB. We can instead
-  // store lane indices and convert to byte indices (2*lane + 0..1), with the
-  // doubling baked into the table. AVX2 Compress32 stores eight 4-bit lane
-  // indices (total 1 KiB), broadcasts them into each 32-bit lane and shifts.
-  // Here, 16-bit lanes are too narrow to hold all bits, and unpacking nibbles
-  // is likely more costly than the higher cache footprint from storing bytes.
   alignas(16) static constexpr uint8_t table[2048] = {
       // PrintCompress16x8Tables
       0,  2,  4,  6,  8,  10, 12, 14, /**/ 0, 2,  4,  6,  8,  10, 12, 14,  //
@@ -5237,14 +5190,6 @@ HWY_INLINE VFromD<D> IndicesFromNotBits128(D d, uint64_t mask_bits) {
   const Twice<decltype(d8)> d8t;
   const RebindToUnsigned<decltype(d)> du;
 
-  // compress_epi16 requires VBMI2 and there is no permutevar_epi16, so we need
-  // byte indices for PSHUFB (one vector's worth for each of 256 combinations of
-  // 8 mask bits). Loading them directly would require 4 KiB. We can instead
-  // store lane indices and convert to byte indices (2*lane + 0..1), with the
-  // doubling baked into the table. AVX2 Compress32 stores eight 4-bit lane
-  // indices (total 1 KiB), broadcasts them into each 32-bit lane and shifts.
-  // Here, 16-bit lanes are too narrow to hold all bits, and unpacking nibbles
-  // is likely more costly than the higher cache footprint from storing bytes.
   alignas(16) static constexpr uint8_t table[2048] = {
       // PrintCompressNot16x8Tables
       0, 2,  4,  6,  8,  10, 12, 14, /**/ 2,  4,  6,  8,  10, 12, 14, 0,   //
@@ -5887,7 +5832,8 @@ HWY_API V HighestSetBitIndex(V v) {
   return BitCast(d, Set(d, T{sizeof(T) * 8 - 1}) - LeadingZeroCount(v));
 }
 
-template <class V, HWY_IF_NOT_FLOAT_NOR_SPECIAL_V(V), HWY_IF_V_SIZE_LE_V(V, 16), HWY_IF_T_SIZE_V(V, 1)>
+template <class V, HWY_IF_NOT_FLOAT_NOR_SPECIAL_V(V),
+          HWY_IF_V_SIZE_LE_V(V, 16), HWY_IF_T_SIZE_V(V, 1)>
 HWY_API V TrailingZeroCount(V v) {
   return LeadingZeroCount(ReverseBits(v));
 }

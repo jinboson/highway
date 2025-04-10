@@ -2292,7 +2292,6 @@ HWY_API Indices256<TFromD<D>> IndicesFromVec(D /* tag */, Vec256<TI> vec) {
   return Indices256<TFromD<D>>{vec.raw};
 }
 
-// TODO
 template <class D, HWY_IF_V_SIZE_D(D, 32), typename TI>
 HWY_API Indices256<TFromD<D>> SetTableIndices(D d, const TI* idx) {
   const Rebind<TI, decltype(d)> di;
@@ -2307,12 +2306,14 @@ HWY_API Vec256<T> TableLookupLanes(Vec256<T> v, Indices256<T> idx) {
   return Vec256<T>{__lasx_xvshuf_b(b.raw, a.raw, idx.raw)};
 }
 
-template <typename T, HWY_IF_T_SIZE(T, 2), HWY_IF_NOT_SPECIAL_FLOAT(T)>
+template <typename T, HWY_IF_T_SIZE(T, 2)>
 HWY_API Vec256<T> TableLookupLanes(Vec256<T> v, Indices256<T> idx) {
   const DFromV<decltype(v)> d;
+  const RebindToUnsigned<decltype(d)> du;
   const auto a = ConcatLowerLower(d, v, v);
   const auto b = ConcatUpperUpper(d, v, v);
-  return Vec256<T>{__lasx_xvshuf_h(idx.raw, b.raw, a.raw)};
+  return BitCast(d, VFromD<decltype(du)>{
+                        __lasx_xvshuf_h(idx.raw, BitCast(du, b).raw, a.raw)});
 }
 
 template <typename T, HWY_IF_T_SIZE(T, 4)>
@@ -2336,13 +2337,12 @@ HWY_API Vec256<T> TableLookupLanes(Vec256<T> v, Indices256<T> idx) {
 template <typename T, HWY_IF_T_SIZE(T, 1)>
 HWY_API Vec256<T> TwoTablesLookupLanes(Vec256<T> a, Vec256<T> b,
                                        Indices256<T> idx) {
-  const DFromV<decltype(a)> d;
   const auto idx2 = Indices256<T>{__lasx_xvandi_b(idx.raw, 31)};
-  const Vec256<T> idx_vec{idx.raw};
-  const auto sel_hi_mask = MaskFromVec(ShiftLeft<2>(idx_vec));
+  const auto sel_hi_mask = __lasx_xvslli_b(idx.raw, 2);
+  const auto mask0or1 = __lasx_xvslti_b(sel_hi_mask, 0);
   const auto lo_lookup_result = TableLookupLanes(a, idx);
   const auto hi_lookup_result = TableLookupLanes(b, idx2);
-  return IfThenElse(sel_hi_mask, hi_lookup_result, lo_lookup_result);
+  return IfThenElse(Mask256<T>{mask0or1}, hi_lookup_result, lo_lookup_result);
 }
 
 template <typename T, HWY_IF_T_SIZE(T, 2)>
@@ -2350,55 +2350,55 @@ HWY_API Vec256<T> TwoTablesLookupLanes(Vec256<T> a, Vec256<T> b,
                                        Indices256<T> idx) {
   const DFromV<decltype(a)> d;
   const Vec256<T> idx_vec{idx.raw};
-  const auto sel_hi_mask = MaskFromVec(ShiftLeft<11>(idx_vec));
+  const auto sel_hi_mask = ShiftLeft<11>(idx_vec);
+  const auto mask0or1 = __lasx_xvslti_h(sel_hi_mask.raw, 0);
   const auto lo_lookup_result = TableLookupLanes(a, idx);
   const auto hi_lookup_result = TableLookupLanes(b, idx);
-  return IfThenElse(sel_hi_mask, hi_lookup_result, lo_lookup_result);
+  return IfThenElse(RebindMask(d, Mask256<uint16_t>{mask0or1}),
+                    hi_lookup_result, lo_lookup_result);
 }
 
 template <typename T, HWY_IF_UI32(T)>
 HWY_API Vec256<T> TwoTablesLookupLanes(Vec256<T> a, Vec256<T> b,
                                        Indices256<T> idx) {
-  const DFromV<decltype(a)> d;
-  const RebindToFloat<decltype(d)> df;
   const Vec256<T> idx_vec{idx.raw};
-
-  const auto sel_hi_mask = MaskFromVec(BitCast(df, ShiftLeft<28>(idx_vec)));
-  const auto lo_lookup_result = BitCast(df, TableLookupLanes(a, idx));
-  const auto hi_lookup_result = BitCast(df, TableLookupLanes(b, idx));
-  return BitCast(d,
-                 IfThenElse(sel_hi_mask, hi_lookup_result, lo_lookup_result));
+  const auto sel_hi_mask = ShiftLeft<28>(idx_vec);
+  const auto mask0or1 = __lasx_xvslti_w(sel_hi_mask.raw, 0);
+  const auto lo_lookup_result = TableLookupLanes(a, idx);
+  const auto hi_lookup_result = TableLookupLanes(b, idx);
+  return IfThenElse(Mask256<T>{mask0or1}, hi_lookup_result, lo_lookup_result);
 }
 
 HWY_API Vec256<float> TwoTablesLookupLanes(Vec256<float> a, Vec256<float> b,
                                            Indices256<float> idx) {
   const DFromV<decltype(a)> d;
-  const auto sel_hi_mask =
-      MaskFromVec(BitCast(d, ShiftLeft<28>(Vec256<uint32_t>{idx.raw})));
+  const auto sel_hi_mask = ShiftLeft<28>(Vec256<uint32_t>{idx.raw});
+  const auto mask0or1 = __lasx_xvslti_w(sel_hi_mask.raw, 0);
   const auto lo_lookup_result = TableLookupLanes(a, idx);
   const auto hi_lookup_result = TableLookupLanes(b, idx);
-  return IfThenElse(sel_hi_mask, hi_lookup_result, lo_lookup_result);
+  return IfThenElse(RebindMask(d, Mask256<uint32_t>{mask0or1}),
+                    hi_lookup_result, lo_lookup_result);
 }
 
 template <typename T, HWY_IF_UI64(T)>
 HWY_API Vec256<T> TwoTablesLookupLanes(Vec256<T> a, Vec256<T> b,
                                        Indices256<T> idx) {
-  const DFromV<decltype(a)> d;
-  const auto sel_hi_mask =
-      MaskFromVec(BitCast(d, ShiftLeft<61>(Vec256<uint64_t>{idx.raw})));
+  const auto sel_hi_mask = ShiftLeft<61>(Vec256<uint64_t>{idx.raw});
+  const auto mask0or1 = __lasx_xvslti_d(sel_hi_mask.raw, 0);
   const auto lo_lookup_result = TableLookupLanes(a, idx);
   const auto hi_lookup_result = TableLookupLanes(b, idx);
-  return IfThenElse(sel_hi_mask, hi_lookup_result, lo_lookup_result);
+  return IfThenElse(Mask256<T>{mask0or1}, hi_lookup_result, lo_lookup_result);
 }
 
 HWY_API Vec256<double> TwoTablesLookupLanes(Vec256<double> a, Vec256<double> b,
                                             Indices256<double> idx) {
   const DFromV<decltype(a)> d;
-  const auto sel_hi_mask =
-      MaskFromVec(BitCast(d, ShiftLeft<61>(Vec256<uint64_t>{idx.raw})));
+  const auto sel_hi_mask = ShiftLeft<61>(Vec256<uint64_t>{idx.raw});
+  const auto mask0or1 = __lasx_xvslti_d(sel_hi_mask.raw, 0);
   const auto lo_lookup_result = TableLookupLanes(a, idx);
   const auto hi_lookup_result = TableLookupLanes(b, idx);
-  return IfThenElse(sel_hi_mask, hi_lookup_result, lo_lookup_result);
+  return IfThenElse(RebindMask(d, Mask256<uint64_t>{mask0or1}),
+                    hi_lookup_result, lo_lookup_result);
 }
 
 // ------------------------------ SwapAdjacentBlocks
@@ -3753,25 +3753,6 @@ HWY_API VFromD<D> DemoteInRangeTo(D /* tag */, Vec256<double> v) {
       D(), static_cast<uint32_t>(vec_raw[0]), static_cast<uint32_t>(vec_raw[1]),
       static_cast<uint32_t>(vec_raw[2]), static_cast<uint32_t>(vec_raw[3]));
 }
-
-// FIXME impl in lsx
-// template <class D, HWY_IF_V_SIZE_D(D, 16), HWY_IF_F32_D(D)>
-// HWY_API VFromD<D> DemoteTo(D /* tag */, VFromD<Rebind<int64_t, D>> v) {
-//  const Twice<D> d;
-//  const RebindToSigned<decltype(d)> di;
-//  const Vec256<float> f32_blocks{__lasx_xvffint_s_l(v.raw, v.raw)};
-//  return LowerHalf(BitCast(d, VFromD<decltype(di)>{__lasx_xvpermi_d(
-//                                  BitCast(di, f32_blocks).raw, 0xd8)}));
-//}
-
-// FIXME impl in lsx
-// template <class D, HWY_IF_V_SIZE_D(D, 16), HWY_IF_F32_D(D)>
-// HWY_API VFromD<D> DemoteTo(D /* tag */, VFromD<Rebind<uint64_t, D>> v) {
-//  const auto vec_raw = reinterpret_cast<v4u64>(v.raw);
-//  return Dup128VecFromValues(
-//      D(), static_cast<float>(vec_raw[0]), static_cast<float>(vec_raw[1]),
-//      static_cast<float>(vec_raw[2]), static_cast<float>(vec_raw[3]));
-//}
 
 // For already range-limited input [0, 255].
 HWY_API Vec128<uint8_t, 8> U8FromU32(const Vec256<uint32_t> v) {
