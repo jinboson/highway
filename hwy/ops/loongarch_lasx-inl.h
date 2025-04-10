@@ -471,7 +471,7 @@ HWY_API Vec256<T> ZeroIfNegative(Vec256<T> v) {
   static_assert(IsSigned<T>(), "Only for float");
   const DFromV<decltype(v)> d;
   const auto zero = Zero(d);
-  return IfThenElse(MaskFromVec(v), zero, v);
+  return IfThenElse(v < zero, zero, v);
 }
 
 // ------------------------------ Mask logical
