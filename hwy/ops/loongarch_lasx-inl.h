@@ -3773,11 +3773,10 @@ HWY_API Vec128<uint8_t, 8> U8FromU32(const Vec256<uint32_t> v) {
 
 template <class D, HWY_IF_V_SIZE_D(D, 4), HWY_IF_U8_D(D)>
 HWY_API VFromD<D> TruncateTo(D /* tag */, Vec256<uint64_t> v) {
-  const Full256<uint16_t> d16;
-  alignas(32) static constexpr uint16_t kMap[16] = {0, 8, 16, 24};
-  const auto i32_concat = ConcatEven(DFromV<decltype(v)>(), v, v);
-  const auto i16 = TableLookupBytes(i32_concat, Load(d16, kMap));
-  return LowerHalf(LowerHalf(LowerHalf(Vec256<uint8_t>{i16.raw})));
+  const Full256<uint8_t> d8;
+  alignas(32) static constexpr uint8_t kMap[32] = {0, 8, 16, 24};
+  const auto i8 = TableLookupLanes(BitCast(d8, v), SetTableIndices(d8, kMap));
+  return LowerHalf(LowerHalf(LowerHalf(Vec256<uint8_t>{i8.raw})));
 }
 
 template <class D, HWY_IF_V_SIZE_D(D, 8), HWY_IF_U16_D(D)>
@@ -3799,12 +3798,9 @@ HWY_API VFromD<D> TruncateTo(D /* tag */, Vec256<uint64_t> v) {
 
 template <class D, HWY_IF_V_SIZE_D(D, 8), HWY_IF_U8_D(D)>
 HWY_API VFromD<D> TruncateTo(D /* tag */, Vec256<uint32_t> v) {
-  const Full256<uint32_t> d32;
-  alignas(32) static constexpr uint32_t kEven[8] = {0x06040200, 0x0E0C0A08};
-  // const __m256i i16_blocks = __lasx_xvpickev_h(v.raw, v.raw);
-  // const __m256i i16_concat = __lasx_xvpermi_d(i16_blocks, 0xd8);
-  const auto i16_concat = ConcatEven(DFromV<decltype(v)>(), v, v);
-  const auto i8 = TableLookupBytes(i16_concat, Load(d32, kEven));
+  const Full256<uint8_t> d8;
+  alignas(32) static constexpr uint8_t kEven[32] = {0, 4, 8, 12, 16, 20, 24, 28};
+  const auto i8 = TableLookupLanes(BitCast(d8, v), SetTableIndices(d8, kEven));
   return LowerHalf(LowerHalf(Vec256<uint8_t>{i8.raw}));
 }
 
@@ -3864,15 +3860,6 @@ HWY_API VFromD<DU> ConvertTo(DU /*du*/, VFromD<RebindToFloat<DU>> v) {
   return VFromD<DU>{__lasx_xvftintrz_lu_d(v.raw)};
 }
 
-// template <class D, HWY_IF_V_SIZE_D(D, 32), HWY_IF_I32_D(D)>
-// HWY_API VFromD<D> NearestInt(D /*d*/, Vec256<float> v) {
-//  return VFromD<D>{__lasx_xvftintrne_w_s(v.raw)};
-//}
-//
-// template <class D, HWY_IF_V_SIZE_D(D, 32), HWY_IF_I64_D(D)>
-// HWY_API VFromD<D> NearestInt(D /*di*/, Vec256<double> v) {
-//  return VFromD<D>{__lasx_xvftintrne_l_d(v.raw)};
-//}
 template <typename T, HWY_IF_FLOAT3264(T)>
 HWY_API Vec256<MakeSigned<T>> NearestInt(const Vec256<T> v) {
   return ConvertTo(Full256<MakeSigned<T>>(), Round(v));
