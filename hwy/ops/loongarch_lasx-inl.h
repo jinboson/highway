@@ -2312,7 +2312,7 @@ HWY_API Vec256<T> TableLookupLanes(Vec256<T> v, Indices256<T> idx) {
   const DFromV<decltype(v)> d;
   const auto a = ConcatLowerLower(d, v, v);
   const auto b = ConcatUpperUpper(d, v, v);
-  return Vec256<T>{__lasx_xvshuf_h(b.raw, a.raw, idx.raw)};
+  return Vec256<T>{__lasx_xvshuf_h(idx.raw, b.raw, a.raw)};
 }
 
 template <typename T, HWY_IF_T_SIZE(T, 4)>
