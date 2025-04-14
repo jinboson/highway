@@ -1154,141 +1154,98 @@ HWY_API Vec256<int16_t> MulFixedPoint15(Vec256<int16_t> a, Vec256<int16_t> b) {
   return ResizeBitCast(di16, i32Prd);
 }
 
-// ------------------------------ ShiftLeft
-// __lasx_xvslli_{b,h,w,d} ONLY accept real immediate const value, which means
-// they will reject __lasx_xvslli_b{v, kBits} this way.  Gcc will generate one
-// xvslli.{b,h,w,d} instruction for "<<" operator if the kBits is a realy
-// immediate const value ,otherwise it will generate two instructions
-// (xvreplgr2vr.{b,h,w,d} + vsll.{b,h,w,d}), but Clang will always generate two
-// instructions(same with Gcc), so don't use intrinsic directly insted let
-// compiler itself to generate instructions based on kBits at compile time,
-// which will save one instruction for Gcc at least.  Same for ShiftRight.
-template <int kBits>
-HWY_API Vec256<uint8_t> ShiftLeft(Vec256<uint8_t> v) {
-  using rawType = typename detail::Raw256<uint8_t>::type;
-  return Vec256<uint8_t>{(rawType)((v32u8)v.raw << kBits)};
+// ------------------------------ ShiftLeft (Compile-time constant shifts)
+
+template <int kBits, typename T, HWY_IF_UI8(T)>
+HWY_API Vec256<T> ShiftLeft(Vec256<T> v) {
+  return Vec256<T>{__lasx_xvslli_b(v.raw, kBits)};
 }
 
-template <int kBits>
-HWY_API Vec256<uint16_t> ShiftLeft(Vec256<uint16_t> v) {
-  using rawType = typename detail::Raw256<uint16_t>::type;
-  return Vec256<uint16_t>{(rawType)((v16u16)v.raw << kBits)};
+template <int kBits, typename T, HWY_IF_UI16(T)>
+HWY_API Vec256<T> ShiftLeft(Vec256<T> v) {
+  return Vec256<T>{__lasx_xvslli_h(v.raw, kBits)};
 }
 
-template <int kBits>
-HWY_API Vec256<uint32_t> ShiftLeft(Vec256<uint32_t> v) {
-  using rawType = typename detail::Raw256<uint32_t>::type;
-  return Vec256<uint32_t>{(rawType)((v8u32)v.raw << kBits)};
+template <int kBits, typename T, HWY_IF_UI32(T)>
+HWY_API Vec256<T> ShiftLeft(Vec256<T> v) {
+  return Vec256<T>{__lasx_xvslli_w(v.raw, kBits)};
 }
 
-template <int kBits>
-HWY_API Vec256<uint64_t> ShiftLeft(Vec256<uint64_t> v) {
-  using rawType = typename detail::Raw256<uint64_t>::type;
-  return Vec256<uint64_t>{(rawType)((v4u64)v.raw << kBits)};
+template <int kBits, typename T, HWY_IF_UI64(T)>
+HWY_API Vec256<T> ShiftLeft(Vec256<T> v) {
+  return Vec256<T>{__lasx_xvslli_d(v.raw, kBits)};
 }
 
-template <int kBits>
-HWY_API Vec256<int8_t> ShiftLeft(Vec256<int8_t> v) {
-  using rawType = typename detail::Raw256<int8_t>::type;
-  return Vec256<int8_t>{(rawType)((v32i8)v.raw << kBits)};
-}
-
-template <int kBits>
-HWY_API Vec256<int16_t> ShiftLeft(Vec256<int16_t> v) {
-  using rawType = typename detail::Raw256<int16_t>::type;
-  return Vec256<int16_t>{(rawType)((v16i16)v.raw << kBits)};
-}
-
-template <int kBits>
-HWY_API Vec256<int32_t> ShiftLeft(Vec256<int32_t> v) {
-  using rawType = typename detail::Raw256<int32_t>::type;
-  return Vec256<int32_t>{(rawType)((v8i32)v.raw << kBits)};
-}
-
-template <int kBits>
-HWY_API Vec256<int64_t> ShiftLeft(Vec256<int64_t> v) {
-  using rawType = typename detail::Raw256<int64_t>::type;
-  return Vec256<int64_t>{(rawType)((v4i64)v.raw << kBits)};
-}
-
-// ------------------------------ ShiftRight
+// ------------------------------ ShiftRight (Compile-time constant shifts)
 
 template <int kBits>
 HWY_API Vec256<uint8_t> ShiftRight(Vec256<uint8_t> v) {
-  using rawType = typename detail::Raw256<uint8_t>::type;
-  return Vec256<uint8_t>{(rawType)((v32u8)v.raw >> kBits)};
+  return Vec256<uint8_t>{__lasx_xvsrli_b(v.raw, kBits)};
 }
 
 template <int kBits>
 HWY_API Vec256<uint16_t> ShiftRight(Vec256<uint16_t> v) {
-  using rawType = typename detail::Raw256<uint16_t>::type;
-  return Vec256<uint16_t>{(rawType)((v16u16)v.raw >> kBits)};
+  return Vec256<uint16_t>{__lasx_xvsrli_h(v.raw, kBits)};
 }
 
 template <int kBits>
 HWY_API Vec256<uint32_t> ShiftRight(Vec256<uint32_t> v) {
-  using rawType = typename detail::Raw256<uint32_t>::type;
-  return Vec256<uint32_t>{(rawType)((v8u32)v.raw >> kBits)};
+  return Vec256<uint32_t>{__lasx_xvsrli_w(v.raw, kBits)};
 }
 
 template <int kBits>
 HWY_API Vec256<uint64_t> ShiftRight(Vec256<uint64_t> v) {
-  using rawType = typename detail::Raw256<uint64_t>::type;
-  return Vec256<uint64_t>{(rawType)((v4u64)v.raw >> kBits)};
+  return Vec256<uint64_t>{__lasx_xvsrli_d(v.raw, kBits)};
 }
 
 template <int kBits>
 HWY_API Vec256<int8_t> ShiftRight(Vec256<int8_t> v) {
-  using rawType = typename detail::Raw256<int8_t>::type;
-  return Vec256<int8_t>{(rawType)((v32i8)v.raw >> kBits)};
+  return Vec256<int8_t>{__lasx_xvsrai_b(v.raw, kBits)};
 }
 
 template <int kBits>
 HWY_API Vec256<int16_t> ShiftRight(Vec256<int16_t> v) {
-  using rawType = typename detail::Raw256<int16_t>::type;
-  return Vec256<int16_t>{(rawType)((v16i16)v.raw >> kBits)};
+  return Vec256<int16_t>{__lasx_xvsrai_h(v.raw, kBits)};
 }
 
 template <int kBits>
 HWY_API Vec256<int32_t> ShiftRight(Vec256<int32_t> v) {
-  using rawType = typename detail::Raw256<int32_t>::type;
-  return Vec256<int32_t>{(rawType)((v8i32)v.raw >> kBits)};
+  return Vec256<int32_t>{__lasx_xvsrai_w(v.raw, kBits)};
 }
 
 template <int kBits>
 HWY_API Vec256<int64_t> ShiftRight(Vec256<int64_t> v) {
-  using rawType = typename detail::Raw256<int64_t>::type;
-  return Vec256<int64_t>{(rawType)((v4i64)v.raw >> kBits)};
+  return Vec256<int64_t>{__lasx_xvsrai_d(v.raw, kBits)};
 }
 
-// ------------------------------ RotateRight
+// ------------------------------ RotateRight (Compile-time constant shifts)
 
 template <int kBits, typename T, HWY_IF_UI8(T)>
 HWY_API Vec256<T> RotateRight(const Vec256<T> v) {
   static_assert(0 <= kBits && kBits < 8, "Invalid shift count");
   if (kBits == 0) return v;
-  return Or(ShiftRight<kBits>(v), ShiftLeft<HWY_MIN(7, 8 - kBits)>(v));
+  return Vec256<T>{__lasx_xvrotri_b(v.raw, kBits)};
 }
 
 template <int kBits, typename T, HWY_IF_UI16(T)>
 HWY_API Vec256<T> RotateRight(const Vec256<T> v) {
   static_assert(0 <= kBits && kBits < 16, "Invalid shift count");
   if (kBits == 0) return v;
-  return Or(ShiftRight<kBits>(v), ShiftLeft<HWY_MIN(15, 16 - kBits)>(v));
+  return Vec256<T>{__lasx_xvrotri_h(v.raw, kBits)};
 }
 
 template <int kBits, typename T, HWY_IF_UI32(T)>
 HWY_API Vec256<T> RotateRight(const Vec256<T> v) {
   static_assert(0 <= kBits && kBits < 32, "Invalid shift count");
   if (kBits == 0) return v;
-  return Or(ShiftRight<kBits>(v), ShiftLeft<HWY_MIN(31, 32 - kBits)>(v));
+  return Vec256<T>{__lasx_xvrotri_w(v.raw, kBits)};
 }
 
 template <int kBits, typename T, HWY_IF_UI64(T)>
 HWY_API Vec256<T> RotateRight(const Vec256<T> v) {
   static_assert(0 <= kBits && kBits < 64, "Invalid shift count");
   if (kBits == 0) return v;
-  return Or(ShiftRight<kBits>(v), ShiftLeft<HWY_MIN(63, 64 - kBits)>(v));
+  return Vec256<T>{__lasx_xvrotri_d(v.raw, kBits)};
 }
 
 // ------------------------------ Rol/Ror
@@ -1383,39 +1340,24 @@ HWY_API Vec256<int32_t> IfNegativeThenNegOrUndefIfZero(Vec256<int32_t> mask,
 
 // ------------------------------ ShiftLeftSame
 
-HWY_API Vec256<uint8_t> ShiftLeftSame(const Vec256<uint8_t> v, const int bits) {
-  return Vec256<uint8_t>{__lasx_xvsll_b(v.raw, __lasx_xvreplgr2vr_b(bits))};
+template <typename T, HWY_IF_UI8(T)>
+HWY_API Vec256<T> ShiftLeftSame(const Vec256<T> v, const int bits) {
+  return Vec256<T>{__lasx_xvsll_b(v.raw, __lasx_xvreplgr2vr_b(bits))};
 }
 
-HWY_API Vec256<uint16_t> ShiftLeftSame(const Vec256<uint16_t> v,
-                                       const int bits) {
-  return Vec256<uint16_t>{__lasx_xvsll_h(v.raw, __lasx_xvreplgr2vr_h(bits))};
+template <typename T, HWY_IF_UI16(T)>
+HWY_API Vec256<T> ShiftLeftSame(const Vec256<T> v, const int bits) {
+  return Vec256<T>{__lasx_xvsll_h(v.raw, __lasx_xvreplgr2vr_h(bits))};
 }
 
-HWY_API Vec256<uint32_t> ShiftLeftSame(const Vec256<uint32_t> v,
-                                       const int bits) {
-  return Vec256<uint32_t>{__lasx_xvsll_w(v.raw, __lasx_xvreplgr2vr_w(bits))};
+template <typename T, HWY_IF_UI32(T)>
+HWY_API Vec256<T> ShiftLeftSame(const Vec256<T> v, const int bits) {
+  return Vec256<T>{__lasx_xvsll_w(v.raw, __lasx_xvreplgr2vr_w(bits))};
 }
 
-HWY_API Vec256<uint64_t> ShiftLeftSame(const Vec256<uint64_t> v,
-                                       const int bits) {
-  return Vec256<uint64_t>{__lasx_xvsll_d(v.raw, __lasx_xvreplgr2vr_d(bits))};
-}
-
-HWY_API Vec256<int8_t> ShiftLeftSame(const Vec256<int8_t> v, const int bits) {
-  return Vec256<int8_t>{__lasx_xvsll_b(v.raw, __lasx_xvreplgr2vr_b(bits))};
-}
-
-HWY_API Vec256<int16_t> ShiftLeftSame(const Vec256<int16_t> v, const int bits) {
-  return Vec256<int16_t>{__lasx_xvsll_h(v.raw, __lasx_xvreplgr2vr_h(bits))};
-}
-
-HWY_API Vec256<int32_t> ShiftLeftSame(const Vec256<int32_t> v, const int bits) {
-  return Vec256<int32_t>{__lasx_xvsll_w(v.raw, __lasx_xvreplgr2vr_w(bits))};
-}
-
-HWY_API Vec256<int64_t> ShiftLeftSame(const Vec256<int64_t> v, const int bits) {
-  return Vec256<int64_t>{__lasx_xvsll_d(v.raw, __lasx_xvreplgr2vr_d(bits))};
+template <typename T, HWY_IF_UI64(T)>
+HWY_API Vec256<T> ShiftLeftSame(const Vec256<T> v, const int bits) {
+  return Vec256<T>{__lasx_xvsll_d(v.raw, __lasx_xvreplgr2vr_d(bits))};
 }
 
 // ------------------------------ ShiftRightSame (BroadcastSignBit)
@@ -1477,10 +1419,24 @@ HWY_INLINE Vec256<T> Neg(hwy::SpecialTag /*tag*/, const Vec256<T> v) {
 }
 
 // Not floating-point
-template <typename T>
+template <typename T, HWY_IF_UI8(T)>
 HWY_INLINE Vec256<T> Neg(hwy::SignedTag /*tag*/, const Vec256<T> v) {
-  const DFromV<decltype(v)> d;
-  return Zero(d) - v;
+  return Vec256<T>{__lasx_xvneg_b(v.raw)};
+}
+
+template <typename T, HWY_IF_UI16(T)>
+HWY_INLINE Vec256<T> Neg(hwy::SignedTag /*tag*/, const Vec256<T> v) {
+  return Vec256<T>{__lasx_xvneg_h(v.raw)};
+}
+
+template <typename T, HWY_IF_UI32(T)>
+HWY_INLINE Vec256<T> Neg(hwy::SignedTag /*tag*/, const Vec256<T> v) {
+  return Vec256<T>{__lasx_xvneg_w(v.raw)};
+}
+
+template <typename T, HWY_IF_UI64(T)>
+HWY_INLINE Vec256<T> Neg(hwy::SignedTag /*tag*/, const Vec256<T> v) {
+  return Vec256<T>{__lasx_xvneg_d(v.raw)};
 }
 
 }  // namespace detail
