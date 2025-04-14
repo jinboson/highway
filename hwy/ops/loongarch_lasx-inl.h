@@ -4613,7 +4613,7 @@ HWY_API Mask256<T> SetAtOrAfterFirst(Mask256<T> mask) {
   // Copy the sign bit of the even int64_t lanes to the odd int64_t lanes
   const auto vidx = Dup128VecFromValues(di32, 0, 0, 1 + 4, 1 + 4);
   const auto vmask2 =
-      VI32{__lasx_xvshuf_w(vidx.raw, Zero(di32).raw, BitCast(di32, vmask).raw)};
+      VI32{__lasx_xvshuf_w(vidx.raw, BitCast(di32, vmask).raw, Zero(di32).raw)};
   vmask = Or(vmask, BitCast(di64, BroadcastSignBit(vmask2)));
 
   // Copy the sign bit of the lower 128-bit half to the upper 128-bit half
