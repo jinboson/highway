@@ -1146,12 +1146,13 @@ HWY_API Vec256<T> MulOdd(Vec256<T> a, Vec256<T> b) {
   return Vec256<T>{__lasx_xvmulwod_q_du(a.raw, b.raw)};
 }
 
-HWY_API Vec256<int16_t> MulFixedPoint15(Vec256<int16_t> a, Vec256<int16_t> b) {
-  const DFromV<decltype(a)> di16;
-  const RepartitionToWide<decltype(di16)> di32;
-  auto i32Prd = MulEven(a, b) + Set(di32, 0x4000);
-  i32Prd.raw = __lasx_xvslli_w(i32Prd.raw, 1);
-  return ResizeBitCast(di16, i32Prd);
+template <typename T, HWY_IF_I16(T)>
+HWY_API Vec256<T> MulFixedPoint15(Vec256<T> a, Vec256<T> b) {
+  const auto i32_ev = MulEven(a, b);
+  const auto i32_od = MulOdd(a, b);
+  const auto i64_lo = InterleaveLower(i32_ev, i32_od);
+  const auto i64_hi = InterleaveUpper(Full256<int32_t>(), i32_ev, i32_od);
+  return Vec256<T>{__lasx_xvssrarni_h_w(i64_hi.raw, i64_lo.raw, 15)};
 }
 
 // ------------------------------ ShiftLeft (Compile-time constant shifts)
@@ -2434,10 +2435,8 @@ HWY_API VFromD<D> Reverse8(D d, const VFromD<D> v) {
 
 template <class D, HWY_IF_V_SIZE_D(D, 32), HWY_IF_T_SIZE_D(D, 8)>
 HWY_API VFromD<D> Reverse8(D /* tag */, const VFromD<D> /* v */) {
-  HWY_ASSERT(0);  // AVX2 does not have 8 64-bit lanes
+  HWY_ASSERT(0);
 }
-
-// ------------------------------ ReverseBits in x86_512
 
 // ------------------------------ InterleaveLower
 
