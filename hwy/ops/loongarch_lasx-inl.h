@@ -3696,17 +3696,14 @@ HWY_API VFromD<D> DemoteTo(D /* tag */, Vec256<double> v) {
 }
 
 template <class D, HWY_IF_V_SIZE_D(D, 16), HWY_IF_I32_D(D)>
-HWY_API VFromD<D> DemoteInRangeTo(D /* tag */, Vec256<double> v) {
-  const __m256i i32_blocks = __lasx_xvftint_w_d(v.raw, v.raw);
-  return LowerHalf(D(), VFromD<Twice<D>>{__lasx_xvpermi_d(i32_blocks, 0xd8)});
+HWY_API VFromD<D> DemoteInRangeTo(D dn, Vec256<double> v) {
+  const __m256i i32_blocks = __lasx_xvftintrz_w_d(v.raw, v.raw);
+  return LowerHalf(dn, VFromD<Twice<D>>{__lasx_xvpermi_d(i32_blocks, 0xd8)});
 }
 
 template <class D, HWY_IF_V_SIZE_D(D, 16), HWY_IF_U32_D(D)>
-HWY_API VFromD<D> DemoteInRangeTo(D /* tag */, Vec256<double> v) {
-  const auto vec_raw = reinterpret_cast<v4f64>(v.raw);
-  return Dup128VecFromValues(
-      D(), static_cast<uint32_t>(vec_raw[0]), static_cast<uint32_t>(vec_raw[1]),
-      static_cast<uint32_t>(vec_raw[2]), static_cast<uint32_t>(vec_raw[3]));
+HWY_API VFromD<D> DemoteInRangeTo(D dn, Vec256<double> v) {
+  return DemoteTo(dn, Vec256<uint64_t>{__lasx_xvftintrz_lu_d(v.raw)});
 }
 
 // For already range-limited input [0, 255].
