@@ -2866,7 +2866,7 @@ HWY_INLINE V Per4LaneBlockShuffle(hwy::SizeTag<kIdx3210> /*idx_3210_tag*/,
   V idx =
       Per4LaneBlkShufDupSet4xU32(d, (kIdx3210 >> 6) & 3, (kIdx3210 >> 4) & 3,
                                  (kIdx3210 >> 2) & 3, kIdx3210 & 3);
-  return V{__lasx_xvshuf_w(v.raw, v.raw, idx.raw)};
+  return V{__lasx_xvshuf_w(idx.raw, v.raw, v.raw)};
 }
 
 template <size_t kIdx3210, class V, HWY_IF_FLOAT(TFromV<V>)>
@@ -2879,7 +2879,7 @@ HWY_INLINE V Per4LaneBlockShuffle(hwy::SizeTag<kIdx3210> /*idx_3210_tag*/,
       Per4LaneBlkShufDupSet4xU32(du, (kIdx3210 >> 6) & 3, (kIdx3210 >> 4) & 3,
                                  (kIdx3210 >> 2) & 3, kIdx3210 & 3);
   return BitCast(d, VFromD<decltype(du)>{__lasx_xvshuf_w(
-                        BitCast(du, v).raw, BitCast(du, v).raw, idx.raw)});
+                        idx.raw, BitCast(du, v).raw, BitCast(du, v).raw)});
 }
 
 template <class V>
@@ -3755,7 +3755,8 @@ HWY_API VFromD<D> TruncateTo(D /* tag */, Vec256<uint64_t> v) {
 template <class D, HWY_IF_V_SIZE_D(D, 8), HWY_IF_U8_D(D)>
 HWY_API VFromD<D> TruncateTo(D /* tag */, Vec256<uint32_t> v) {
   const Full256<uint8_t> d8;
-  alignas(32) static constexpr uint8_t kEven[32] = {0, 4, 8, 12, 16, 20, 24, 28};
+  alignas(32) static constexpr uint8_t kEven[32] = {0,  4,  8,  12,
+                                                    16, 20, 24, 28};
   const auto i8 = TableLookupLanes(BitCast(d8, v), SetTableIndices(d8, kEven));
   return LowerHalf(LowerHalf(Vec256<uint8_t>{i8.raw}));
 }
