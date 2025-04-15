@@ -2951,38 +2951,14 @@ HWY_API VFromD<D> Slide1Up(D d, VFromD<D> v) {
 
 namespace detail {
 
-template <class D, HWY_IF_V_SIZE_D(D, 32),
-          HWY_IF_T_SIZE_ONE_OF_D(
-              D, (1 << 1) | ((HWY_TARGET > HWY_AVX3) ? (1 << 2) : 0))>
-HWY_INLINE VFromD<D> TableLookupSlideDownLanes(D d, VFromD<D> v, size_t amt) {
-  const Repartition<uint8_t, decltype(d)> du8;
-
-  auto idx_vec = Iota(du8, static_cast<uint8_t>(amt * sizeof(TFromD<D>)));
-
-  const RebindToSigned<decltype(du8)> di8;
-  idx_vec =
-      Or(idx_vec, BitCast(du8, VecFromMask(di8, BitCast(di8, idx_vec) >
-                                                    Set(di8, int8_t{31}))));
-  return TableLookupLanes(v, Indices256<TFromD<D>>{idx_vec.raw});
-}
-
-template <class D, HWY_IF_V_SIZE_GT_D(D, 16),
-          HWY_IF_T_SIZE_ONE_OF_D(D, (1 << 4) | (0))>
+template <class D, HWY_IF_V_SIZE_D(D, 32)>
 HWY_INLINE VFromD<D> TableLookupSlideDownLanes(D d, VFromD<D> v, size_t amt) {
   const RebindToUnsigned<decltype(d)> du;
   using TU = TFromD<decltype(du)>;
-
   const auto idx = Iota(du, static_cast<TU>(amt));
   const auto masked_idx = And(idx, Set(du, static_cast<TU>(MaxLanes(d) - 1)));
-
   return IfThenElseZero(RebindMask(d, idx == masked_idx),
                         TableLookupLanes(v, IndicesFromVec(d, masked_idx)));
-}
-
-template <class D, HWY_IF_V_SIZE_D(D, 32), HWY_IF_T_SIZE_D(D, 8)>
-HWY_INLINE VFromD<D> TableLookupSlideDownLanes(D d, VFromD<D> v, size_t amt) {
-  const RepartitionToNarrow<D> dn;
-  return BitCast(d, TableLookupSlideDownLanes(dn, BitCast(dn, v), amt * 2));
 }
 
 }  // namespace detail
