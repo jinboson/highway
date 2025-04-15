@@ -1895,97 +1895,22 @@ HWY_API VFromD<D> Combine(D d, VFromD<Half<D>> hi, VFromD<Half<D>> lo) {
 
 // ------------------------------ ShiftLeftBytes
 template <int kBytes, class D, HWY_IF_V_SIZE_D(D, 32)>
-HWY_API VFromD<D> ShiftLeftBytes(D /* tag */, VFromD<D> v) {
+HWY_API VFromD<D> ShiftLeftBytes(D d, VFromD<D> v) {
   static_assert(0 <= kBytes && kBytes <= 16, "Invalid kBytes");
-  const Full256<uint8_t> d8;
-// xvbsll.v Only accept immediate value for kBytes, same for xvbsrl.v
-#define R(x)   \
-  BitCast(D(), \
-          VFromD<RebindToSigned<D>>{__lasx_xvbsll_v(BitCast(d8, v).raw, (x))})
-  switch (kBytes) {
-    case 0:
-      return v;
-    case 1:
-      return R(1);
-    case 2:
-      return R(2);
-    case 3:
-      return R(3);
-    case 4:
-      return R(4);
-    case 5:
-      return R(5);
-    case 6:
-      return R(6);
-    case 7:
-      return R(7);
-    case 8:
-      return R(8);
-    case 9:
-      return R(9);
-    case 10:
-      return R(10);
-    case 11:
-      return R(11);
-    case 12:
-      return R(12);
-    case 13:
-      return R(13);
-    case 14:
-      return R(14);
-    case 15:
-      return R(15);
-    case 16:
-      return R(16);
-  }
-#undef R
+  if (kBytes == 0) return v;
+  const RebindToUnsigned<decltype(d)> du;
+  return BitCast(
+      d, VFromD<decltype(du)>{__lasx_xvbsll_v(BitCast(du, v).raw, kBytes)});
 }
 
 // ------------------------------ ShiftRightBytes
 template <int kBytes, class D, HWY_IF_V_SIZE_D(D, 32)>
-HWY_API VFromD<D> ShiftRightBytes(D /* tag */, VFromD<D> v) {
+HWY_API VFromD<D> ShiftRightBytes(D d, VFromD<D> v) {
   static_assert(0 <= kBytes && kBytes <= 16, "Invalid kBytes");
-  const Full256<uint8_t> d8;
-#define R(x)   \
-  BitCast(D(), \
-          VFromD<RebindToSigned<D>>{__lasx_xvbsrl_v(BitCast(d8, v).raw, (x))})
-  switch (kBytes) {
-    case 0:
-      return v;
-    case 1:
-      return R(1);
-    case 2:
-      return R(2);
-    case 3:
-      return R(3);
-    case 4:
-      return R(4);
-    case 5:
-      return R(5);
-    case 6:
-      return R(6);
-    case 7:
-      return R(7);
-    case 8:
-      return R(8);
-    case 9:
-      return R(9);
-    case 10:
-      return R(10);
-    case 11:
-      return R(11);
-    case 12:
-      return R(12);
-    case 13:
-      return R(13);
-    case 14:
-      return R(14);
-    case 15:
-      return R(15);
-    case 16:
-      return R(16);
-  }
-#undef R
+  if (kBytes == 0) return v;
+  const RebindToUnsigned<decltype(d)> du;
+  return BitCast(
+      d, VFromD<decltype(du)>{__lasx_xvbsrl_v(BitCast(du, v).raw, kBytes)});
 }
 
 // ------------------------------ CombineShiftRightBytes
@@ -2269,8 +2194,8 @@ HWY_API Vec256<T> TableLookupLanes(Vec256<T> v, Indices256<T> idx) {
   const RebindToUnsigned<decltype(d)> du;
   const auto a = ConcatLowerLower(d, v, v);
   const auto b = ConcatUpperUpper(d, v, v);
-  return BitCast(d, VFromD<decltype(du)>{
-                        __lasx_xvshuf_h(idx.raw, BitCast(du, b).raw, a.raw)});
+  return BitCast(d, VFromD<decltype(du)>{__lasx_xvshuf_h(
+                        idx.raw, BitCast(du, b).raw, BitCast(du, a).raw)});
 }
 
 template <typename T, HWY_IF_T_SIZE(T, 4)>
@@ -2923,32 +2848,16 @@ HWY_INLINE V Per4LaneBlockShuffle(hwy::SizeTag<kIdx3210> /*idx_3210_tag*/,
 
 namespace detail {
 
-template <class D, HWY_IF_V_SIZE_D(D, 32),
-          HWY_IF_T_SIZE_ONE_OF_D(D, (1 << 1) | (1 << 2))>
+template <class D, HWY_IF_V_SIZE_D(D, 32)>
 HWY_INLINE VFromD<D> TableLookupSlideUpLanes(D d, VFromD<D> v, size_t amt) {
-  const Repartition<uint8_t, decltype(d)> du8;
-  const auto idx_vec =
-      Iota(du8, static_cast<uint8_t>(size_t{0} - amt * sizeof(TFromD<D>)));
-  const Indices256<TFromD<D>> idx{idx_vec.raw};
-  return TableLookupLanes(v, idx);
-}
-
-template <class D, HWY_IF_V_SIZE_GT_D(D, 16),
-          HWY_IF_T_SIZE_ONE_OF_D(D, (1 << 4) | 0)>
-HWY_INLINE VFromD<D> TableLookupSlideUpLanes(D d, VFromD<D> v, size_t amt) {
-  const RebindToUnsigned<decltype(d)> du;
+  const RebindToSigned<D> du;
   using TU = TFromD<decltype(du)>;
-
   const auto idx = Iota(du, static_cast<TU>(size_t{0} - amt));
   const auto masked_idx = And(idx, Set(du, static_cast<TU>(MaxLanes(d) - 1)));
-  return IfThenElseZero(RebindMask(d, idx == masked_idx),
-                        TableLookupLanes(v, IndicesFromVec(d, masked_idx)));
-}
-
-template <class D, HWY_IF_V_SIZE_D(D, 32), HWY_IF_T_SIZE_D(D, 8)>
-HWY_INLINE VFromD<D> TableLookupSlideUpLanes(D d, VFromD<D> v, size_t amt) {
-  const RepartitionToNarrow<D> dn;
-  return BitCast(d, TableLookupSlideUpLanes(dn, BitCast(dn, v), amt * 2));
+  return BitCast(
+      d, IfThenElseZero(
+             idx == masked_idx,
+             TableLookupLanes(BitCast(du, v), IndicesFromVec(du, masked_idx))));
 }
 
 }  // namespace detail
