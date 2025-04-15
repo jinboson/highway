@@ -448,22 +448,19 @@ HWY_API Vec256<T> VecFromMask(const Mask256<T> v) {
 // mask ? yes : no
 template <typename T>
 HWY_API Vec256<T> IfThenElse(Mask256<T> mask, Vec256<T> yes, Vec256<T> no) {
-  const DFromV<decltype(yes)> d;
   return Or(And(VecFromMask(mask), yes), AndNot(VecFromMask(mask), no));
 }
 
 // mask ? yes : 0
 template <typename T>
 HWY_API Vec256<T> IfThenElseZero(Mask256<T> mask, Vec256<T> yes) {
-  const DFromV<decltype(yes)> d;
-  return yes & VecFromMask(d, mask);
+  return yes & VecFromMask(mask);
 }
 
 // mask ? 0 : no
 template <typename T>
 HWY_API Vec256<T> IfThenZeroElse(Mask256<T> mask, Vec256<T> no) {
-  const DFromV<decltype(no)> d;
-  return AndNot(VecFromMask(d, mask), no);
+  return AndNot(VecFromMask(mask), no);
 }
 
 template <typename T>

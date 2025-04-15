@@ -226,9 +226,6 @@ HWY_API VFromD<D> Set(D /* tag */, TFromD<D> t) {
 template <class D, HWY_IF_V_SIZE_LE_D(D, 16), HWY_IF_F32_D(D)>
 HWY_API VFromD<D> Set(D d, float t) {
   const RebindToSigned<decltype(d)> di;
-  const RebindToUnsigned<decltype(d)> du;
-  auto t0 = VFromD<decltype(di)>{__lsx_vldrepl_w(&t, 0)};
-  auto t1 = VFromD<decltype(du)>{__lsx_vldrepl_w(&t, 0)};;
   return BitCast(d, VFromD<decltype(di)>{__lsx_vldrepl_w(&t, 0)});
 }
 
@@ -3885,33 +3882,22 @@ HWY_API Vec128<T> TwoTablesLookupLanes(Vec128<T> a, Vec128<T> b,
 
 // ------------------------------ OddEven (IfThenElse)
 
-template <typename T, size_t N, HWY_IF_T_SIZE(T, 1)>
+template <typename T, size_t N, HWY_IF_UI8(T)>
 HWY_INLINE Vec128<T, N> OddEven(const Vec128<T, N> a, const Vec128<T, N> b) {
-  const DFromV<decltype(a)> d;
-  const Repartition<uint8_t, decltype(d)> d8;
-  alignas(16) static constexpr uint8_t mask[16] = {
-      0xFF, 0, 0xFF, 0, 0xFF, 0, 0xFF, 0, 0xFF, 0, 0xFF, 0, 0xFF, 0, 0xFF, 0};
-  return IfThenElse(MaskFromVec(BitCast(d, Load(d8, mask))), b, a);
+  __m128i t0 = __lsx_vpackod_b(a.raw, a.raw);
+  return Vec128<T, N>{__lsx_vpackev_b(t0, b.raw)};
 }
-template <typename T, size_t N, HWY_IF_T_SIZE(T, 2)>
+template <typename T, size_t N, HWY_IF_UI16(T)>
 HWY_INLINE Vec128<T, N> OddEven(const Vec128<T, N> a, const Vec128<T, N> b) {
-  const DFromV<decltype(a)> d;
-  typedef int16_t OddEvevIdx __attribute__((__vector_size__(16)));
-  OddEvevIdx _idx = {8, 1, 10, 3, 12, 5, 14, 7};
-  const RebindToUnsigned<decltype(d)> du;  // for float16_t
-  return BitCast(d, VFromD<decltype(du)>{
-                        __lsx_vshuf_h(reinterpret_cast<__m128i>(_idx),
-                                      BitCast(du, b).raw, BitCast(du, a).raw)});
+  __m128i t0 = __lsx_vpackod_h(a.raw, a.raw);
+  return Vec128<T, N>{__lsx_vpackev_h(t0, b.raw)};
 }
 template <typename T, size_t N, HWY_IF_T_SIZE(T, 4)>
 HWY_INLINE Vec128<T, N> OddEven(const Vec128<T, N> a, const Vec128<T, N> b) {
   const DFromV<decltype(a)> d;
-  typedef int32_t OddEvevIdx __attribute__((__vector_size__(16)));
-  OddEvevIdx _idx = {4, 1, 6, 3};
   const RebindToUnsigned<decltype(d)> du;
-  return BitCast(d, VFromD<decltype(du)>{
-                        __lsx_vshuf_w(reinterpret_cast<__m128i>(_idx),
-                                      BitCast(du, b).raw, BitCast(du, a).raw)});
+  __m128i t0 = __lsx_vpackod_w(BitCast(du, a).raw, BitCast(du, a).raw);
+  return BitCast(d, VFromD<decltype(du)>{__lsx_vpackev_w(t0, BitCast(du, b).raw)});
 }
 template <typename T, size_t N, HWY_IF_T_SIZE(T, 8)>
 HWY_INLINE Vec128<T, N> OddEven(const Vec128<T, N> a, const Vec128<T, N> b) {
@@ -4515,7 +4501,7 @@ HWY_API VFromD<D> PromoteTo(D /*di64*/, VFromD<Rebind<float, D>> v) {
   return VFromD<D>{__lsx_vftintrzl_l_s(v.raw)};
 }
 
-template <class D, HWY_IF_UI64_D(D), HWY_IF_V_SIZE_LE_D(D, 16)>
+template <class D, HWY_IF_V_SIZE_LE_D(D, 16), HWY_IF_UI64_D(D)>
 HWY_API VFromD<D> PromoteInRangeTo(D d64, VFromD<Rebind<float, D>> v) {
   const Rebind<MakeNarrow<TFromD<D>>, decltype(d64)> d32;
   const RebindToSigned<decltype(d32)> di32;
@@ -4535,7 +4521,7 @@ HWY_API VFromD<D> PromoteInRangeTo(D d64, VFromD<Rebind<float, D>> v) {
          << PromoteTo(d64, exponent_adj);
 }
 
-template <class D, HWY_IF_U64_D(D), HWY_IF_V_SIZE_LE_D(D, 16)>
+template <class D, HWY_IF_V_SIZE_LE_D(D, 16), HWY_IF_U64_D(D)>
 HWY_API VFromD<D> PromoteTo(D du64, VFromD<Rebind<float, D>> v) {
   const Rebind<uint32_t, decltype(du64)> du32;
   const RebindToFloat<decltype(du32)> df32;
@@ -5825,7 +5811,7 @@ HWY_API V LeadingZeroCount(V v) {
   return V{__lsx_vclz_d(v.raw)};
 }
 
-template <class V, HWY_IF_NOT_FLOAT_NOR_SPECIAL_V(V), HWY_IF_V_SIZE_LE_V(V, 16)>
+template <class V, HWY_IF_V_SIZE_LE_V(V, 16), HWY_IF_NOT_FLOAT_NOR_SPECIAL_V(V)>
 HWY_API V HighestSetBitIndex(V v) {
   const DFromV<decltype(v)> d;
   using T = TFromD<decltype(d)>;
