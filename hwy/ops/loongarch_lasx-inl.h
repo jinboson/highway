@@ -661,11 +661,15 @@ HWY_INLINE Mask256<T> Ge(hwy::UnsignedTag /*tag*/, Vec256<T> a, Vec256<T> b) {
 
 HWY_INLINE Mask256<float> Ge(hwy::FloatTag /*tag*/, Vec256<float> a,
                              Vec256<float> b) {
-  return Not(b > a);
+  const DFromV<decltype(a)> d;
+  const RebindToSigned<decltype(d)> di;
+  return RebindMask(d, MFromD<decltype(di)>{__lasx_xvfcmp_cle_s(b.raw, a.raw)});
 }
 HWY_INLINE Mask256<double> Ge(hwy::FloatTag /*tag*/, Vec256<double> a,
                               Vec256<double> b) {
-  return Not(b > a);
+  const DFromV<decltype(a)> d;
+  const RebindToSigned<decltype(d)> di;
+  return RebindMask(d, MFromD<decltype(di)>{__lasx_xvfcmp_cle_d(b.raw, a.raw)});
 }
 
 }  // namespace detail
@@ -684,7 +688,7 @@ HWY_API Mask256<T> operator<(const Vec256<T> a, const Vec256<T> b) {
 
 template <typename T>
 HWY_API Mask256<T> operator<=(const Vec256<T> a, const Vec256<T> b) {
-  return Not(a > b);
+  return b >= a;
 }
 
 // ------------------------------ Min (Gt, IfThenElse)
@@ -722,10 +726,10 @@ HWY_API Vec256<int64_t> Min(const Vec256<int64_t> a, const Vec256<int64_t> b) {
 
 // Float
 HWY_API Vec256<float> Min(const Vec256<float> a, const Vec256<float> b) {
-  return IfThenElse(a < b, a, b);
+  return Vec256<float>{__lasx_xvfmin_s(a.raw, b.raw)};
 }
 HWY_API Vec256<double> Min(const Vec256<double> a, const Vec256<double> b) {
-  return IfThenElse(a < b, a, b);
+  return Vec256<double>{__lasx_xvfmin_d(a.raw, b.raw)};
 }
 
 // ------------------------------ Max (Gt, IfThenElse)
@@ -763,10 +767,10 @@ HWY_API Vec256<int64_t> Max(const Vec256<int64_t> a, const Vec256<int64_t> b) {
 
 // Float
 HWY_API Vec256<float> Max(const Vec256<float> a, const Vec256<float> b) {
-  return IfThenElse(a > b, a, b);
+  return Vec256<float>{__lasx_xvfmax_s(a.raw, b.raw)};
 }
 HWY_API Vec256<double> Max(const Vec256<double> a, const Vec256<double> b) {
-  return IfThenElse(a > b, a, b);
+  return Vec256<double>{__lasx_xvfmax_d(a.raw, b.raw)};
 }
 
 // ------------------------------ Iota
