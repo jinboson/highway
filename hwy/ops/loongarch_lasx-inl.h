@@ -1465,9 +1465,9 @@ HWY_API Vec256<double> ApproximateReciprocal(Vec256<double> v) {
   return Vec256<double>{__lasx_xvfrecip_d(v.raw)};
 }
 
-//Integer multiply-add variants
+// Integer multiply-add variants
 
-//signed
+// signed
 HWY_API Vec256<int8_t> MulAdd(Vec256<int8_t> mul, Vec256<int8_t> x,
                               Vec256<int8_t> add) {
   return Vec256<int8_t>{__lasx_xvmadd_b(add.raw, mul.raw, x.raw)};
@@ -1485,7 +1485,7 @@ HWY_API Vec256<int64_t> MulAdd(Vec256<int64_t> mul, Vec256<int64_t> x,
   return Vec256<int64_t>{__lasx_xvmadd_d(add.raw, mul.raw, x.raw)};
 }
 
-//unsigend
+// unsigend
 HWY_API Vec256<uint8_t> MulAdd(Vec256<uint8_t> mul, Vec256<uint8_t> x,
                                Vec256<uint8_t> add) {
   return Vec256<uint8_t>{__lasx_xvmadd_b(add.raw, mul.raw, x.raw)};
@@ -1503,7 +1503,7 @@ HWY_API Vec256<uint64_t> MulAdd(Vec256<uint64_t> mul, Vec256<uint64_t> x,
   return Vec256<uint64_t>{__lasx_xvmadd_d(add.raw, mul.raw, x.raw)};
 }
 
-//signed
+// signed
 HWY_API Vec256<int8_t> NegMulAdd(Vec256<int8_t> mul, Vec256<int8_t> x,
                                  Vec256<int8_t> add) {
   return Vec256<int8_t>{__lasx_xvmsub_b(add.raw, mul.raw, x.raw)};
@@ -1521,7 +1521,7 @@ HWY_API Vec256<int64_t> NegMulAdd(Vec256<int64_t> mul, Vec256<int64_t> x,
   return Vec256<int64_t>{__lasx_xvmsub_d(add.raw, mul.raw, x.raw)};
 }
 
-//unsigned
+// unsigned
 HWY_API Vec256<uint8_t> NegMulAdd(Vec256<uint8_t> mul, Vec256<uint8_t> x,
                                   Vec256<uint8_t> add) {
   return Vec256<uint8_t>{__lasx_xvmsub_b(add.raw, mul.raw, x.raw)};
@@ -3330,7 +3330,7 @@ HWY_API VFromD<D> PromoteInRangeTo(D /* di64 */, VFromD<Rebind<float, D>> v) {
   return VFromD<D>{__lasx_xvftintrzl_l_s(reinterpret_cast<__m256>(v_ex))};
 }
 template <class D, HWY_IF_V_SIZE_D(D, 32), HWY_IF_U64_D(D)>
-HWY_API VFromD<D> PromoteInRangeTo(D du64, VFromD<Rebind<float, D>> v) {
+HWY_API VFromD<D> PromoteInRangeTo(D /* du64 */, VFromD<Rebind<float, D>> v) {
   detail::U256 u;
   u.ii[0] = BitCast(Rebind<int32_t, D>(), v).raw;
   const auto v_ex = __lasx_xvpermi_d(u.i256, 0xd8);
@@ -4312,7 +4312,7 @@ HWY_API Vec256<T> Expand(Vec256<T> v, Mask256<T> mask) {
   // For lane i, shift the i-th 4-bit index down to bits [0, 2).
   const Vec256<uint64_t> packed = Set(du, packed_array[mask_bits]);
   alignas(32) constexpr uint64_t shifts[8] = {0, 4, 8, 12, 16, 20, 24, 28};
-  // 64-bit TableLookupLanes on AVX2 requires IndicesFromVec, which checks
+  // 64-bit TableLookupLanes on LASX requires IndicesFromVec, which checks
   // bounds, so clear the upper bits.
   const Vec256<uint64_t> masked = And(packed >> Load(du, shifts), Set(du, 3));
   const Indices256<uint64_t> indices = IndicesFromVec(du, masked);

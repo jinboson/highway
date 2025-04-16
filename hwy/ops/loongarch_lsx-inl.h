@@ -2497,13 +2497,17 @@ HWY_INLINE T ExtractLane(const Vec128<T, N> v) {
 
 template <size_t kLane, size_t N>
 HWY_INLINE float ExtractLane(const Vec128<float, N> v) {
-  return static_cast<float>(
-      __lsx_vpickve2gr_w(reinterpret_cast<__m128i>(v.raw), kLane));
+  float f32;
+  int32_t i32 = __lsx_vpickve2gr_w(reinterpret_cast<__m128i>(v.raw), kLane);
+  CopyBytes<4>(&i32, &f32);
+  return f32;
 }
 template <size_t kLane, size_t N>
 HWY_INLINE double ExtractLane(const Vec128<double, N> v) {
-  return static_cast<double>(
-      __lsx_vpickve2gr_d(reinterpret_cast<__m128i>(v.raw), kLane));
+  double f64;
+  int64_t i64 = __lsx_vpickve2gr_d(reinterpret_cast<__m128i>(v.raw), kLane);
+  CopyBytes<8>(&i64, &f64);
+  return f64;
 }
 
 }  // namespace detail
