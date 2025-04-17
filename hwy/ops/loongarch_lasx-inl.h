@@ -107,7 +107,7 @@ typedef union {
   __m256i i256;
 } U256;
 
-}
+}  // namespace detail
 
 // ------------------------------ Zero
 
