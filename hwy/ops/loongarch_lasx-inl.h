@@ -25,13 +25,6 @@ namespace hwy {
 namespace HWY_NAMESPACE {
 namespace detail {
 
-// we don't have intrinsics to operate between 128-bit and 256-bit,
-// so use union to emulate it.
-typedef union My256 {
-  __m128i ii[2];
-  __m256i i256;
-} U256;
-
 template <typename T>
 struct Raw256 {
   using type = __m256i;
@@ -104,6 +97,17 @@ struct Mask256 {
 
 template <typename T>
 using Full256 = Simd<T, 32 / sizeof(T), 0>;
+
+namespace detail {
+
+// we don't have intrinsics to operate between 128-bit and 256-bit,
+// so use union to emulate it.
+typedef union {
+  __m128i ii[2];
+  __m256i i256;
+} U256;
+
+}
 
 // ------------------------------ Zero
 
@@ -4583,7 +4587,3 @@ HWY_API V TrailingZeroCount(V v) {
 }  // namespace HWY_NAMESPACE
 }  // namespace hwy
 HWY_AFTER_NAMESPACE();
-
-// Note that the GCC warnings are not suppressed if we only wrap the *intrin.h -
-// the warning seems to be issued at the call site of intrinsics, i.e. our code.
-HWY_DIAGNOSTICS(pop)
