@@ -244,6 +244,8 @@ set(HWY_SOURCES
     hwy/ops/emu128-inl.h
     hwy/ops/generic_ops-inl.h
     hwy/ops/inside-inl.h
+    hwy/ops/loongarch_lsx-inl.h
+    hwy/ops/loongarch_lasx-inl.h
     hwy/ops/ppc_vsx-inl.h
     hwy/ops/rvv-inl.h
     hwy/ops/scalar-inl.h
