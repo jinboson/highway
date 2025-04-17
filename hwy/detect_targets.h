@@ -331,9 +331,11 @@
 
 #ifndef HWY_BROKEN_LOONGARCH  // allow override
 // HWY_LSX/HWY_LASX require GCC 14 or Clang 18.
-#if HWY_ARCH_LOONGARCH &&                                 \
-    ((HWY_COMPILER_CLANG && (HWY_COMPILER_CLANG < 1800 && HWY_COMPILER_CLANG != 800)) || \
-     (HWY_COMPILER_GCC_ACTUAL && (HWY_COMPILER_GCC_ACTUAL < 1400 && HWY_COMPILER_GCC_ACTUAL != 803)))
+#if HWY_ARCH_LOONGARCH &&                                          \
+    ((HWY_COMPILER_CLANG &&                                        \
+      (HWY_COMPILER_CLANG < 1800 && HWY_COMPILER_CLANG != 800)) || \
+     (HWY_COMPILER_GCC_ACTUAL &&                                   \
+      (HWY_COMPILER_GCC_ACTUAL < 1400 && HWY_COMPILER_GCC_ACTUAL != 803)))
 #define HWY_BROKEN_LOONGARCH (HWY_LSX | HWY_LASX)
 #else
 #define HWY_BROKEN_LOONGARCH 0
@@ -761,6 +763,14 @@
 #endif
 #endif  // HWY_HAVE_RUNTIME_DISPATCH_APPLE
 
+#ifndef HWY_HAVE_RUNTIME_DISPATCH_LOONGARCH  // allow override
+#if HWY_ARCH_LOONGARCH && HWY_HAVE_AUXV && defined(__loongarch_asx)
+#define HWY_HAVE_RUNTIME_DISPATCH_LOONGARCH 1
+#else
+#define HWY_HAVE_RUNTIME_DISPATCH_LOONGARCH 0
+#endif
+#endif  // HWY_HAVE_RUNTIME_DISPATCH_LOONGARCH
+
 #ifndef HWY_HAVE_RUNTIME_DISPATCH_LINUX  // allow override
 #if (HWY_ARCH_ARM || HWY_ARCH_PPC || HWY_ARCH_S390X) && HWY_OS_LINUX && \
     (HWY_COMPILER_GCC_ACTUAL || HWY_COMPILER_CLANG >= 1700) && HWY_HAVE_AUXV
@@ -773,8 +783,9 @@
 // Allow opting out, and without a guarantee of success, opting-in.
 #ifndef HWY_HAVE_RUNTIME_DISPATCH
 // Clang, GCC and MSVC allow OS-independent runtime dispatch on x86.
-#if HWY_ARCH_X86 || HWY_HAVE_RUNTIME_DISPATCH_RVV || \
-    HWY_HAVE_RUNTIME_DISPATCH_APPLE || HWY_HAVE_RUNTIME_DISPATCH_LINUX
+#if HWY_ARCH_X86 || HWY_HAVE_RUNTIME_DISPATCH_RVV ||                          \
+    HWY_HAVE_RUNTIME_DISPATCH_APPLE || HWY_HAVE_RUNTIME_DISPATCH_LOONGARCH || \
+    HWY_HAVE_RUNTIME_DISPATCH_LINUX
 #define HWY_HAVE_RUNTIME_DISPATCH 1
 #else
 #define HWY_HAVE_RUNTIME_DISPATCH 0
