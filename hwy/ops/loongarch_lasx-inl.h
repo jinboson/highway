@@ -2293,6 +2293,18 @@ HWY_API Vec256<T> SwapAdjacentBlocks(Vec256<T> v) {
                         BitCast(du, v).raw, BitCast(du, v).raw, 0x01)});
 }
 
+// ------------------------------ InterleaveEvenBlocks (ConcatLowerLower)
+template <class D, class V = VFromD<D>, HWY_IF_V_SIZE_D(D, 32)>
+HWY_API V InterleaveEvenBlocks(D d, V a, V b) {
+  return ConcatLowerLower(d, b, a);
+}
+
+// ------------------------------ InterleaveOddBlocks (ConcatUpperUpper)
+template <class D, class V = VFromD<D>, HWY_IF_V_SIZE_D(D, 32)>
+HWY_API V InterleaveOddBlocks(D d, V a, V b) {
+  return ConcatUpperUpper(d, b, a);
+}
+
 // ------------------------------ Reverse (RotateRight)
 
 template <class D, HWY_IF_V_SIZE_D(D, 32), HWY_IF_T_SIZE_D(D, 4)>
