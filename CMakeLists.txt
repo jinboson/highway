@@ -68,6 +68,14 @@ endif()
 # The following is only required with GCC < 6.1.0 or CLANG < 16.0
 set(HWY_CMAKE_ARM7 OFF CACHE BOOL "Set copts for Armv7 with NEON (requires vfpv4)?")
 
+# If comiplers support them, we need to add them, because __loongarch_sx and
+# __loongarch_asx require them in cases that they are not enabled by default.
+# Note: If you add -mlasx, then __loongarch_sx will be enabled automatically,
+# so it does NOTHING if you set HWY_CMAKE_LSX `OFF` but with HWY_CMAKE_LASX
+# left `ON`.
+set(HWY_CMAKE_LSX ON CACHE BOOL "Add -mlsx flag?")
+set(HWY_CMAKE_LASX ON CACHE BOOL "Add -mlasx flag?")
+
 # This must be set on 32-bit x86 with GCC < 13.1, otherwise math_test will be
 # skipped. For GCC 13.1+, you can also build with -fexcess-precision=standard.
 set(HWY_CMAKE_SSE2 OFF CACHE BOOL "Set SSE2 as baseline for 32-bit x86?")
@@ -135,6 +143,16 @@ check_cxx_source_compiles(
     }"
   HWY_RISCV
 )
+
+if (CMAKE_SYSTEM_PROCESSOR MATCHES "loongarch32|loongarch64")
+  include(CheckCXXCompilerFlag)
+  if (HWY_CMAKE_LSX)
+    check_cxx_compiler_flag("-mlsx" COMPILER_SUPPORT_LSX_FLAG)
+  endif()
+  if (HWY_CMAKE_LASX)
+    check_cxx_compiler_flag("-mlasx" COMPILER_SUPPORT_LASX_FLAG)
+  endif()
+endif()
 
 if (WIN32)
   set (ORIG_CMAKE_REQUIRED_LIBRARIES ${CMAKE_REQUIRED_LIBRARIES})
@@ -358,6 +376,13 @@ else()
     -Wnon-virtual-dtor
     -Wcast-align # see -Wcast-align=strict on x86
   )
+
+  if(COMPILER_SUPPORT_LSX_FLAG)
+    list(APPEND HWY_FLAGS -mlsx)
+  endif()
+  if(COMPILER_SUPPORT_LASX_FLAG)
+    list(APPEND HWY_FLAGS -mlasx)
+  endif()
 
   if(${CMAKE_CXX_COMPILER_ID} MATCHES "Clang")
     list(APPEND HWY_FLAGS
